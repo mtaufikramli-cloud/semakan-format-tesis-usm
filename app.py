@@ -5,6 +5,40 @@ from PIL import Image
 import pymupdf as fitz
 import streamlit as st
 
+# ==========================================
+# 🔒 SISTEM KATA LALUAN MUDAH (SIMPLE AUTH)
+# ==========================================
+PASSWORD_RAHSIA = "USM2026"  # Tukar kata laluan anda di sini
+
+if "authenticated" not in st.session_state:
+    st.session_state.authenticated = False
+
+def check_password():
+    if st.session_state.get("password_input") == PASSWORD_RAHSIA:
+        st.session_state.authenticated = True
+        del st.session_state["password_input"]  # Padam dari memori untuk keselamatan
+    else:
+        st.session_state.authenticated = False
+        st.error("🔑 Kata laluan salah. Sila cuba lagi!")
+
+if not st.session_state.authenticated:
+    st.title("🔒 Semakan Format Tesis USM")
+    st.subheader("Sila masukkan kata laluan untuk mengakses sistem.")
+    
+    st.text_input(
+        "Kata Laluan Akses:", 
+        type="password", 
+        key="password_input", 
+        on_change=check_password
+    )
+    st.button("Log Masuk", on_click=check_password)
+    st.stop()  # Hentikan pelaksanaan kod seterusnya jika belum log masuk
+
+# ==========================================
+# 🚀 KOD APLIKASI UTAMA ANDA BERMULA DI SINI
+# ==========================================
+# (Kekalkan semua kod asal aplikasi anda di bawah baris ini)
+
 st.set_page_config(
     page_title="Semakan Format Tesis USM", layout="wide", page_icon="📄"
 )
