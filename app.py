@@ -13,26 +13,23 @@ PASSWORD_RAHSIA = "USM2026"  # Tukar kata laluan anda di sini
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
 
-def check_password():
-    if st.session_state.get("password_input") == PASSWORD_RAHSIA:
-        st.session_state.authenticated = True
-        del st.session_state["password_input"]  # Padam dari memori untuk keselamatan
-    else:
-        st.session_state.authenticated = False
-        st.error("🔑 Kata laluan salah. Sila cuba lagi!")
-
 if not st.session_state.authenticated:
     st.title("🔒 Semakan Format Tesis USM")
     st.subheader("Sila masukkan kata laluan untuk mengakses sistem.")
-    
-    st.text_input(
-        "Kata Laluan Akses:", 
-        type="password", 
-        key="password_input", 
-        on_change=check_password
-    )
-    st.button("Log Masuk", on_click=check_password)
-    st.stop()  # Hentikan pelaksanaan kod seterusnya jika belum log masuk
+
+    # Menggunakan st.form supaya tiada auto-trigger bila klik di luar
+    with st.form("login_form"):
+        password_input = st.text_input("Kata Laluan Akses:", type="password")
+        submit_button = st.form_submit_button("Log Masuk")
+
+        if submit_button:
+            if password_input == PASSWORD_RAHSIA:
+                st.session_state.authenticated = True
+                st.rerun()  # Muat semula halaman untuk membuka aplikasi utama
+            else:
+                st.error("🔑 Kata laluan salah. Sila cuba lagi!")
+
+    st.stop()  # Hentikan kod aplikasi utama jika belum sahkan kata laluan
 
 # ==========================================
 # 🚀 KOD APLIKASI UTAMA ANDA BERMULA DI SINI
