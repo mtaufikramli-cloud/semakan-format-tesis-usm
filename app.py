@@ -361,6 +361,10 @@ if uploaded_file is not None:
                         [s["text"] for s in line["spans"]]
                     ).strip()
 
+                    # Semak adakah baris ini hanyalah Nombor Muka Surat (Angka atau Roman)
+                    clean_line = full_line_text.strip().lower().strip(".- ()")
+                    is_pure_page_num = (clean_line.isdigit() or clean_line in ROMAN_NUMERALS)
+
                     for span in line["spans"]:
                         text = span["text"].strip()
                         size = round(span["size"], 1)
@@ -372,129 +376,127 @@ if uploaded_file is not None:
 
                         x0, y0, x1, y1 = bbox
                         center_x, center_y = (x0 + x1) / 2, (y0 + y1) / 2
-                        clean_text = text.lower().strip(".- ")
 
-                        is_pagenum_candidate = False
-                        if clean_text.isdigit() or clean_text in ROMAN_NUMERALS:
+                        # 🛑 Pengecualian Utama: Jika ini nombor muka surat di kawasan Footer/Header, ABAIKAN semakan margin & font
+                        is_pagenum_position = False
+                        if is_pure_page_num:
                             if is_landscape:
-                                if x0 < 100 and abs(center_y - (rect.height / 2)) < 150:
-                                    is_pagenum_candidate = True
+                                if x0 < 120 and abs(center_y - (rect.height / 2)) < 200:
+                                    is_pagenum_position = True
                             else:
-                                if y0 > (rect.height - 100) and abs(center_x - (rect.width / 2)) < 150:
-                                    is_pagenum_candidate = True
+                                if y0 > (rect.height - 120) and abs(center_x - (rect.width / 2)) < 200:
+                                    is_pagenum_position = True
 
-                        if is_pagenum_candidate:
-                            continue
+                        if is_pagenum_position:
+                            continue  # Jangan anggap sebagai ralat margin atau font!
 
-                        clean_line = full_line_text.strip().lower()
-                        is_pg_num = clean_line.isdigit() or clean_line in ROMAN_NUMERALS
+                        # --- Semakan Ralat Text Biasa ---
+                        if y1 > cur_m_bottom:
+                            page_errors.append(
+                                {
+                                    "msg": f"Luar Margin Bawah: '{full_line_text[:20]}...'",
+                                    "bbox": bbox,
+                                }
+                            )
 
-                        if not (is_pg_num and y0 > (rect.height - 100)):
-                            if y1 > cur_m_bottom:
-                                page_errors.append(
-                                    {
-                                        "msg": f"Luar Margin Bawah: '{full_line_text[:20]}...'",
-                                        "bbox": bbox,
-                                    }
+                        if not (abaikan_appendix and is_appendix_page):
+                            font_name_clean = font_name.lower().replace(" ", "")
+                            is_math_font = any(
+                                mf in font_name_clean for mf in MATH_SYMBOL_FONTS
+                            )
+
+                            if not is_math_font:
+                                font_matched = any(
+                                    f.lower().replace(" ", "") in font_name_clean
+                                    for f in allowed_fonts
                                 )
-
-                            if not (abaikan_appendix and is_appendix_page):
-                                font_name_clean = font_name.lower().replace(" ", "")
-                                is_math_font = any(
-                                    mf in font_name_clean for mf in MATH_SYMBOL_FONTS
-                                )
-
-                                if not is_math_font:
-                                    font_matched = any(
-                                        f.lower().replace(" ", "") in font_name_clean
-                                        for f in allowed_fonts
+                                if not font_matched and len(text) > 3:
+                                    page_errors.append(
+                                        {
+                                            "msg": f"Jenis font tidak sah ({font_name}): '{text[:25]}...'",
+                                            "bbox": bbox,
+                                        }
                                     )
-                                    if not font_matched and len(text) > 3:
+
+                                if len(text) > 5:
+                                    if size < 8.0:
                                         page_errors.append(
                                             {
-                                                "msg": f"Jenis font tidak sah ({font_name}): '{text[:25]}...'",
+                                                "msg": f"Saiz font terlalu kecil ({size}pt): '{text[:25]}...'",
+                                                "bbox": bbox,
+                                            }
+                                        )
+                                    elif 12.5 < size < 18.0:
+                                        page_errors.append(
+                                            {
+                                                "msg": f"Saiz font terlalu besar ({size}pt): '{text[:25]}...'",
                                                 "bbox": bbox,
                                             }
                                         )
 
-                                    if len(text) > 5:
-                                        if size < 8.0:
-                                            page_errors.append(
-                                                {
-                                                    "msg": f"Saiz font terlalu kecil ({size}pt): '{text[:25]}...'",
-                                                    "bbox": bbox,
-                                                }
-                                            )
-                                        elif 12.5 < size < 18.0:
-                                            page_errors.append(
-                                                {
-                                                    "msg": f"Saiz font terlalu besar ({size}pt): '{text[:25]}...'",
-                                                    "bbox": bbox,
-                                                }
-                                            )
+                        if semak_caption and not is_list_page:
+                            is_dot_leader_line = bool(DOT_LEADER_REGEX.search(full_line_text))
+                            is_sentence = bool(VERB_KEYWORDS_REGEX.search(full_line_text))
+                            is_in_text_citation = bool(IN_TEXT_CITATION_REGEX.match(full_line_text))
 
-                            if semak_caption and not is_list_page:
-                                is_dot_leader_line = bool(DOT_LEADER_REGEX.search(full_line_text))
-                                is_sentence = bool(VERB_KEYWORDS_REGEX.search(full_line_text))
-                                is_in_text_citation = bool(IN_TEXT_CITATION_REGEX.match(full_line_text))
+                            if (
+                                TABLE_PREFIX_REGEX.match(full_line_text)
+                                and not is_sentence
+                                and not is_dot_leader_line
+                                and not is_in_text_citation
+                            ):
+                                table_below_close = False
+                                for d in drawings:
+                                    d_y0 = d["rect"][1]
+                                    if 0 < (d_y0 - y1) < 50:
+                                        table_below_close = True
+                                        break
 
-                                if (
-                                    TABLE_PREFIX_REGEX.match(full_line_text)
-                                    and not is_sentence
-                                    and not is_dot_leader_line
-                                    and not is_in_text_citation
-                                ):
-                                    table_below_close = False
-                                    for d in drawings:
-                                        d_y0 = d["rect"][1]
-                                        if 0 < (d_y0 - y1) < 50:
-                                            table_below_close = True
-                                            break
+                                if not table_below_close:
+                                    page_errors.append(
+                                        {
+                                            "msg": f"Kedudukan Tajuk Jadual Salah (Mesti Di Atas Jadual): '{full_line_text[:35]}...'",
+                                            "bbox": bbox,
+                                        }
+                                    )
 
-                                    if not table_below_close:
-                                        page_errors.append(
-                                            {
-                                                "msg": f"Kedudukan Tajuk Jadual Salah (Mesti Di Atas Jadual): '{full_line_text[:35]}...'",
-                                                "bbox": bbox,
-                                            }
-                                        )
+                                clean_title_text = full_line_text.strip()
+                                if re.match(r"^(Table|Jadual)\s+\d+(\.\d+)*\.?$", clean_title_text, re.IGNORECASE):
+                                    page_errors.append(
+                                        {
+                                            "msg": f"Format Tajuk Jadual Terlangkau/Terpisah Baris: '{clean_title_text}' (Sepatutnya sebaris dengan penerangan)",
+                                            "bbox": bbox,
+                                        }
+                                    )
 
-                                    clean_title_text = full_line_text.strip()
-                                    if re.match(r"^(Table|Jadual)\s+\d+(\.\d+)*\.?$", clean_title_text, re.IGNORECASE):
-                                        page_errors.append(
-                                            {
-                                                "msg": f"Format Tajuk Jadual Terlangkau/Terpisah Baris: '{clean_title_text}' (Sepatutnya sebaris dengan penerangan)",
-                                                "bbox": bbox,
-                                            }
-                                        )
+                            elif (
+                                FIGURE_PREFIX_REGEX.match(full_line_text)
+                                and not is_sentence
+                                and not is_dot_leader_line
+                                and not is_in_text_citation
+                            ):
+                                image_above_close = False
+                                image_below_close = False
 
-                                elif (
-                                    FIGURE_PREFIX_REGEX.match(full_line_text)
-                                    and not is_sentence
-                                    and not is_dot_leader_line
-                                    and not is_in_text_citation
-                                ):
-                                    image_above_close = False
-                                    image_below_close = False
+                                for img in images_info:
+                                    img_y0 = img["bbox"][1]
+                                    img_y1 = img["bbox"][3]
 
-                                    for img in images_info:
-                                        img_y0 = img["bbox"][1]
-                                        img_y1 = img["bbox"][3]
+                                    if 0 < (y0 - img_y1) < 50:
+                                        image_above_close = True
 
-                                        if 0 < (y0 - img_y1) < 50:
-                                            image_above_close = True
+                                    if 0 < (img_y0 - y1) < 30:
+                                        image_below_close = True
 
-                                        if 0 < (img_y0 - y1) < 30:
-                                            image_below_close = True
+                                if image_below_close and not image_above_close:
+                                    page_errors.append(
+                                        {
+                                            "msg": f"Kedudukan Tajuk Rajah Salah (Mesti Di Bawah Rajah): '{full_line_text[:35]}...'",
+                                            "bbox": bbox,
+                                        }
+                                    )
 
-                                    if image_below_close and not image_above_close:
-                                        page_errors.append(
-                                            {
-                                                "msg": f"Kedudukan Tajuk Rajah Salah (Mesti Di Bawah Rajah): '{full_line_text[:35]}...'",
-                                                "bbox": bbox,
-                                            }
-                                        )
-
+        # Semakan Kehadiran Nombor Muka Surat (Dibaiki zon julat y0 > height - 120)
         is_exempted_page = any(
             k in page_text_lower
             for k in [
@@ -519,7 +521,7 @@ if uploaded_file is not None:
             else:
                 for w in words:
                     y0, clean_w = w[1], w[4].lower().strip(".- ()")
-                    if y0 > (rect.height - 100) and (clean_w.isdigit() or clean_w in ROMAN_NUMERALS):
+                    if y0 > (rect.height - 120) and (clean_w.isdigit() or clean_w in ROMAN_NUMERALS):
                         has_pagenum_found = True
                         break
 
