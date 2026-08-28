@@ -13,11 +13,8 @@ st.set_page_config(
     page_title="Semakan Format Tesis USM", layout="wide", page_icon="📄"
 )
 
-# ==========================================
-# 🔒 SISTEM KATA LALUAN & LOG OUT
-# ==========================================
 PASSWORD_RAHSIA = "USM2026"
-APP_VERSION = "v1.1.0 (Table & Figure Checker)"
+APP_VERSION = "v1.1.1 (Improved Caption Logic)"
 
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
@@ -54,15 +51,11 @@ if not st.session_state.authenticated:
     st.markdown("---")
     st.warning("""
     ### ⚠️ Penafian (Disclaimer) & Panduan Penggunaan
-    1. **Sistem Bantu Semak Otomatik:** Aplikasi ini dibangunkan sebagai **alat bantuan awal** untuk mengesan ralat format utama (margin, font, nombor muka surat, & kedudukan tajuk Jadual/Rajah).
+    1. **Sistem Bantu Semak Otomatik:** Aplikasi ini dibangunkan sebagai **alat bantuan awal** untuk mengesan ralat format utama.
     2. **Kelulusan Rasmi:** Keputusan semakan aplikasi ini **bukan penentu mutlak**. Pengguna bertanggungjawab merujuk *Garis Panduan Penulisan Tesis USM* rasmi.
     3. **Kerahsiaan Fail:** Fail PDF diproses secara *in-memory* dan **tidak disimpan secara kekal**.
     """)
     st.stop()
-
-# ==========================================
-# 🚀 KOD APLIKASI UTAMA
-# ==========================================
 
 # ==================== SIDEBAR & TETAPAN ====================
 with st.sidebar:
@@ -145,13 +138,11 @@ with st.sidebar:
     abaikan_appendix = st.checkbox(
         "Abaikan Semakan Font pada Lampiran (Appendix)",
         value=True,
-        help="Semakan font/saiz dikecualikan untuk muka surat Lampiran.",
     )
 
     semak_caption = st.checkbox(
         "Aktifkan Semakan Format Tajuk Jadual & Rajah",
         value=True,
-        help="Semak kedudukan tajuk Jadual (di atas) dan Rajah (di bawah).",
     )
 
 MATH_SYMBOL_FONTS = [
@@ -193,21 +184,24 @@ ROMAN_NUMERALS = [
     "xx",
 ]
 
-# Regex untuk tajuk Jadual dan Rajah (Menyokong Bahasa Melayu & Inggeris)
-TABLE_REGEX = re.compile(
+TABLE_PREFIX_REGEX = re.compile(
     r"^\s*(Table|Jadual)\s+\d+(\.\d+)*", re.IGNORECASE
 )
-FIGURE_REGEX = re.compile(
+FIGURE_PREFIX_REGEX = re.compile(
     r"^\s*(Figure|Rajah)\s+\d+(\.\d+)*", re.IGNORECASE
 )
 
+# Kata kunci yang menunjukkan ia adalah ayat biasa, BUKAN tajuk/caption rasmi
+VERB_KEYWORDS_REGEX = re.compile(
+    r"\b(shows|show|depicts|depict|illustrates|illustrate|presents|present|were|was|is|are|shows the|can be seen)\b",
+    re.IGNORECASE,
+)
 
-# ==================== FUNGSI PENJANAAN PDF ====================
+
 def generate_pdf_report(filtered_errors, total_pages):
     pdf = FPDF()
     pdf.set_auto_page_break(auto=True, margin=15)
     pdf.add_page()
-
     pdf.set_font("Helvetica", "B", 16)
     pdf.cell(
         0,
@@ -286,7 +280,7 @@ def create_download_button_html(
 ):
     b64 = base64.b64encode(file_bytes).decode()
     href = f"data:application/pdf;base64,{b64}"
-    html = f"""
+    return f"""
     <a href="{href}" download="{filename}" style="text-decoration: none;">
         <div style="
             background-color: {color};
@@ -304,10 +298,8 @@ def create_download_button_html(
         </div>
     </a>
     """
-    return html
 
 
-# ==================== KANDUNGAN UTAMA ====================
 st.title("📄 Sistem Semakan Format Tesis (USM Standard)")
 uploaded_file = st.file_uploader("Muat Naik Fail PDF Tesis", type=["pdf"])
 
@@ -333,9 +325,6 @@ if uploaded_file is not None:
         st.rerun()
 
     st.subheader("🔍 Mod Semakan & Pratonton Visual")
-    st.info(
-        "Petunjuk: Anda boleh menandakan **'Abaikan (Bypass)'** untuk isu yang hendak dikecualikan daripada laporan akhir."
-    )
 
     detected_issues = []
     all_pages_errors_list = []
@@ -345,8 +334,7 @@ if uploaded_file is not None:
         rect = page.rect
         blocks = page.get_text("dict")["blocks"]
 
-        # Dapatkan imej dan lukisan garisan (untuk analisis kedudukan Rajah/Jadual)
-        images = page.get_images()
+        images_info = page.get_image_info()
         drawings = page.get_drawings()
 
         page_text_lower = page.get_text().lower()
@@ -377,6 +365,11 @@ if uploaded_file is not None:
         for b in blocks:
             if "lines" in b:
                 for line in b["lines"]:
+                    # Gabungkan teks dalam satu baris untuk elak terpisah-pisah
+                    full_line_text = "".join(
+                        [s["text"] for s in line["spans"]]
+                    ).strip()
+
                     for span in line["spans"]:
                         text = span["text"].strip()
                         size = round(span["size"], 1)
@@ -483,40 +476,62 @@ if uploaded_file is not None:
                                             }
                                         )
 
-                        # 3. SEMAKAN TAJUK JADUAL & RAJAH (NEW FEATURE)
+                        # 3. SEMAKAN TAJUK JADUAL & RAJAH (PENAMBAHBAIKAN LOGIK)
                         if semak_caption:
-                            # A) Semak Tajuk Jadual (Must be ABOVE)
-                            if TABLE_REGEX.match(text):
-                                # Semak sama ada terdapat garisan grid jadual di atas tajuk ini
-                                table_above = False
+                            # Tentukan sama ada baris ini adalah perenggan biasa (mengandungi kata kerja)
+                            is_sentence = bool(
+                                VERB_KEYWORDS_REGEX.search(full_line_text)
+                            )
+
+                            # A) Semak Tajuk Jadual (Mesti di ATAS Jadual)
+                            if (
+                                TABLE_PREFIX_REGEX.match(full_line_text)
+                                and not is_sentence
+                            ):
+                                # Jadual dikesan melalui lukisan garisan (drawings)
+                                # Sahkan jika ada garisan jadual DI ATAS tajuk ini (jarak sangat dekat, e.g. < 40 pt)
+                                table_above_close = False
                                 for d in drawings:
-                                    d_y1 = d["rect"][1]
-                                    # Jika garisan dikesan di atas tajuk (jarak < 100 pt)
-                                    if y0 - d_y1 > 0 and y0 - d_y1 < 120:
-                                        table_above = True
+                                    d_y1 = d["rect"][3]
+                                    if 0 < (y0 - d_y1) < 40:
+                                        table_above_close = True
                                         break
-                                if table_above:
+
+                                if table_above_close:
                                     page_errors.append(
                                         {
-                                            "msg": f"Kedudukan Tajuk Jadual Salah (Mesti Di Atas Jadual): '{text[:30]}'",
+                                            "msg": f"Kedudukan Tajuk Jadual Salah (Mesti Di Atas Jadual): '{full_line_text[:35]}...'",
                                             "bbox": bbox,
                                         }
                                     )
 
-                            # B) Semak Tajuk Rajah (Must be BELOW)
-                            elif FIGURE_REGEX.match(text):
-                                figure_below = False
-                                # Semak jika tajuk rajah berada DI ATAS imej/elemen lukisan
-                                for img_info in page.get_image_info():
-                                    img_y0 = img_info["bbox"][1]
-                                    # Jika imej dikesan di bawah tajuk (jarak < 150 pt)
-                                    if img_y0 > y1 and img_y0 - y1 < 150:
-                                        figure_below = True
-                                        break
-                                if figure_below:
+                            # B) Semak Tajuk Rajah (Mesti di BAWAH Rajah)
+                            elif (
+                                FIGURE_PREFIX_REGEX.match(full_line_text)
+                                and not is_sentence
+                            ):
+                                # Sahkan jika imej berada DI BAWAH tajuk ini secara rapat (jarak < 30 pt)
+                                # DAN pastikan TIADA imej di ATAS tajuk (yang rapat)
+                                image_above_close = False
+                                image_below_close = False
+
+                                for img in images_info:
+                                    img_y0 = img["bbox"][1]
+                                    img_y1 = img["bbox"][3]
+
+                                    # Imej di atas tajuk (jarak rapat < 50pt)
+                                    if 0 < (y0 - img_y1) < 50:
+                                        image_above_close = True
+
+                                    # Imej di bawah tajuk (jarak rapat < 30pt)
+                                    if 0 < (img_y0 - y1) < 30:
+                                        image_below_close = True
+
+                                # Ralat berlaku HANYA JIKA tajuk di atas imej DAN tiada imej di atasnya
+                                if image_below_close and not image_above_close:
                                     page_errors.append(
                                         {
-                                            "msg": f"Kedudukan Tajuk Rajah Salah (Mesti Di Bawah Rajah): '{text[:30]}'",
+                                            "msg": f"Kedudukan Tajuk Rajah Salah (Mesti Di Bawah Rajah): '{full_line_text[:35]}...'",
                                             "bbox": bbox,
                                         }
                                     )
