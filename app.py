@@ -361,8 +361,8 @@ if uploaded_file is not None:
                         [s["text"] for s in line["spans"]]
                     ).strip()
 
-                    # Semak adakah baris ini hanyalah Nombor Muka Surat (Angka atau Roman)
-                    clean_line = full_line_text.strip().lower().strip(".- ()")
+                    # Pembersihan ketat untuk mengesan angka / roman (cth: 'xxviii', '28', '- 28 -')
+                    clean_line = re.sub(r"[^a-zA-Z0-9]", "", full_line_text.lower())
                     is_pure_page_num = (clean_line.isdigit() or clean_line in ROMAN_NUMERALS)
 
                     for span in line["spans"]:
@@ -377,20 +377,18 @@ if uploaded_file is not None:
                         x0, y0, x1, y1 = bbox
                         center_x, center_y = (x0 + x1) / 2, (y0 + y1) / 2
 
-                        # 🛑 Pengecualian Utama: Jika ini nombor muka surat di kawasan Footer/Header, ABAIKAN semakan margin & font
+                        # 🛑 ZON FOOTER / PAGING: Jika teks berada di 10% bahagian bawah helaian & merupakan nombor muka surat
+                        is_footer_zone = (y0 > (rect.height - 120))
                         is_pagenum_position = False
-                        if is_pure_page_num:
-                            if is_landscape:
-                                if x0 < 120 and abs(center_y - (rect.height / 2)) < 200:
-                                    is_pagenum_position = True
-                            else:
-                                if y0 > (rect.height - 120) and abs(center_x - (rect.width / 2)) < 200:
-                                    is_pagenum_position = True
 
+                        if is_pure_page_num and is_footer_zone:
+                            is_pagenum_position = True
+
+                        # Jika ia dikesan sebagai Nombor Muka Surat, ABAIKAN semakan ralat margin & font!
                         if is_pagenum_position:
-                            continue  # Jangan anggap sebagai ralat margin atau font!
+                            continue
 
-                        # --- Semakan Ralat Text Biasa ---
+                        # --- Semakan Ralat Teks Biasa (Hanya jika BUKAN nombor muka surat) ---
                         if y1 > cur_m_bottom:
                             page_errors.append(
                                 {
@@ -496,7 +494,7 @@ if uploaded_file is not None:
                                         }
                                     )
 
-        # Semakan Kehadiran Nombor Muka Surat (Dibaiki zon julat y0 > height - 120)
+        # Semakan Kehadiran Nombor Muka Surat (Penjelmaan Regex Penuh)
         is_exempted_page = any(
             k in page_text_lower
             for k in [
@@ -514,13 +512,15 @@ if uploaded_file is not None:
 
             if is_landscape:
                 for w in words:
-                    x0, clean_w = w[0], w[4].lower().strip(".- ()")
+                    x0 = w[0]
+                    clean_w = re.sub(r"[^a-zA-Z0-9]", "", w[4].lower())
                     if x0 < 120 and (clean_w.isdigit() or clean_w in ROMAN_NUMERALS):
                         has_pagenum_found = True
                         break
             else:
                 for w in words:
-                    y0, clean_w = w[1], w[4].lower().strip(".- ()")
+                    y0 = w[1]
+                    clean_w = re.sub(r"[^a-zA-Z0-9]", "", w[4].lower())
                     if y0 > (rect.height - 120) and (clean_w.isdigit() or clean_w in ROMAN_NUMERALS):
                         has_pagenum_found = True
                         break
