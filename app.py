@@ -1,5 +1,6 @@
 import base64
 import io
+import re
 from fpdf import FPDF
 from PIL import Image
 import pymupdf as fitz
@@ -7,36 +8,31 @@ import streamlit as st
 
 # ==========================================
 # ⚙️ TETAPAN AWAL APPLIKASI STREAMLIT
-# (Wajib diletakkan sebelum sebarang elemen GUI lain)
 # ==========================================
 st.set_page_config(
     page_title="Semakan Format Tesis USM", layout="wide", page_icon="📄"
 )
 
 # ==========================================
-# 🔒 SISTEM KATA LALUAN, DISCLAIMER & LOG OUT
+# 🔒 SISTEM KATA LALUAN & LOG OUT
 # ==========================================
-PASSWORD_RAHSIA = "USM2026"  # Kata laluan akses
-APP_VERSION = "v1.0.0 (Prototaip)"
+PASSWORD_RAHSIA = "USM2026"
+APP_VERSION = "v1.1.0 (Table & Figure Checker)"
 
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
 
 
-# Fungsi Log Out
 def logout():
     st.session_state.authenticated = False
     st.rerun()
 
 
-# Paparan Borang Log Masuk (Jika Belum Authenticated)
 if not st.session_state.authenticated:
     st.title("📄 Semakan Format Tesis USM")
     st.caption(f"📌 **Versi Sistem:** {APP_VERSION}")
-
     st.markdown("---")
 
-    # 1. Borang Log Masuk
     col_login, _ = st.columns([1.5, 1])
     with col_login:
         with st.form("login_form"):
@@ -56,25 +52,16 @@ if not st.session_state.authenticated:
                     st.error("🔑 Kata laluan salah. Sila cuba lagi!")
 
     st.markdown("---")
-
-    # 2. Kotak Penafian (Disclaimer) & Informasi Sistem
     st.warning("""
     ### ⚠️ Penafian (Disclaimer) & Panduan Penggunaan
-    1. **Sistem Bantu Semak Otomatik:** Aplikasi ini dibangunkan sebagai **alat bantuan awal** untuk mengesan ralat format utama (margin, font, & nombor muka surat).
-    2. **Kelulusan Rasmi:** Keputusan semakan aplikasi ini **bukan penentu mutlak**. Pengguna bertanggungjawab merujuk *Garis Panduan Penulisan Tesis USM* rasmi terkini.
-    3. **Kerahsiaan Fail:** Fail PDF yang dimuat naik diproses secara *in-memory* dan **tidak disimpan secara kekal** di dalam mana-mana pangkalan data server.
+    1. **Sistem Bantu Semak Otomatik:** Aplikasi ini dibangunkan sebagai **alat bantuan awal** untuk mengesan ralat format utama (margin, font, nombor muka surat, & kedudukan tajuk Jadual/Rajah).
+    2. **Kelulusan Rasmi:** Keputusan semakan aplikasi ini **bukan penentu mutlak**. Pengguna bertanggungjawab merujuk *Garis Panduan Penulisan Tesis USM* rasmi.
+    3. **Kerahsiaan Fail:** Fail PDF diproses secara *in-memory* dan **tidak disimpan secara kekal**.
     """)
-
-    st.info("""
-    💡 **Saranan Penggunaan:** 
-    Untuk hasil terbaik, pastikan dokumen tesis dimuat naik dalam format **PDF berkualiti tinggi** yang di-export terus daripada Microsoft Word atau LaTeX (bukan salinan yang di-scan).
-    """)
-
-    st.stop()  # Hentikan kod jika belum sahkan kata laluan
-
+    st.stop()
 
 # ==========================================
-# 🚀 KOD APLIKASI UTAMA (SELEPAS LOG MASUK)
+# 🚀 KOD APLIKASI UTAMA
 # ==========================================
 
 # ==================== SIDEBAR & TETAPAN ====================
@@ -83,7 +70,7 @@ with st.sidebar:
     if st.button("🚪 Log Out", type="secondary", use_container_width=True):
         logout()
     st.markdown("---")
-    st.header("⚙️ Tetapan Template Tesis")
+    st.header("⚙️ Tetapan Templat Tesis")
 
     preset = st.selectbox(
         "Pilih Templat Universiti",
@@ -155,11 +142,16 @@ with st.sidebar:
         default=default_fonts,
     )
 
-    # 💡 Tetapan Pengecualian Font pada Lampiran / Appendix
     abaikan_appendix = st.checkbox(
         "Abaikan Semakan Font pada Lampiran (Appendix)",
         value=True,
-        help="Jika diaktifkan, semakan jenis dan saiz font akan dikecualikan untuk muka surat Lampiran.",
+        help="Semakan font/saiz dikecualikan untuk muka surat Lampiran.",
+    )
+
+    semak_caption = st.checkbox(
+        "Aktifkan Semakan Format Tajuk Jadual & Rajah",
+        value=True,
+        help="Semak kedudukan tajuk Jadual (di atas) dan Rajah (di bawah).",
     )
 
 MATH_SYMBOL_FONTS = [
@@ -200,6 +192,14 @@ ROMAN_NUMERALS = [
     "xix",
     "xx",
 ]
+
+# Regex untuk tajuk Jadual dan Rajah (Menyokong Bahasa Melayu & Inggeris)
+TABLE_REGEX = re.compile(
+    r"^\s*(Table|Jadual)\s+\d+(\.\d+)*", re.IGNORECASE
+)
+FIGURE_REGEX = re.compile(
+    r"^\s*(Figure|Rajah)\s+\d+(\.\d+)*", re.IGNORECASE
+)
 
 
 # ==================== FUNGSI PENJANAAN PDF ====================
@@ -284,7 +284,6 @@ def generate_annotated_thesis(doc_input, all_pages_errors, ignored_set):
 def create_download_button_html(
     file_bytes, filename, button_text, color="#2563eb"
 ):
-    """Menjana link muat turun HTML menggunakan Base64 URI bagi mengelakkan auto-download IDM"""
     b64 = base64.b64encode(file_bytes).decode()
     href = f"data:application/pdf;base64,{b64}"
     html = f"""
@@ -316,7 +315,6 @@ if uploaded_file is not None:
     doc = fitz.open(stream=uploaded_file.read(), filetype="pdf")
     st.success(f"Fail berjaya dimuat naik! Jumlah muka surat: {len(doc)}")
 
-    # Inisialisasi State
     if "ignored_errors" not in st.session_state:
         st.session_state.ignored_errors = set()
     if "report_pdf_bytes" not in st.session_state:
@@ -330,7 +328,6 @@ if uploaded_file is not None:
         else:
             st.session_state.ignored_errors.add(err_id)
 
-        # Padamkan cache PDF supaya tiada muat turun automatik berlaku
         st.session_state.report_pdf_bytes = None
         st.session_state.annotated_pdf_bytes = None
         st.rerun()
@@ -348,7 +345,10 @@ if uploaded_file is not None:
         rect = page.rect
         blocks = page.get_text("dict")["blocks"]
 
-        # Kesan jika muka surat ini adalah Lampiran (Appendix)
+        # Dapatkan imej dan lukisan garisan (untuk analisis kedudukan Rajah/Jadual)
+        images = page.get_images()
+        drawings = page.get_drawings()
+
         page_text_lower = page.get_text().lower()
         is_appendix_page = any(
             k in page_text_lower
@@ -413,7 +413,7 @@ if uploaded_file is not None:
                         if is_pagenum_candidate:
                             continue
 
-                        # 1. Semakan Margin (Kekal disemak untuk semua muka surat)
+                        # 1. SEMAKAN MARGIN
                         if x0 < cur_m_left:
                             page_errors.append(
                                 {
@@ -443,7 +443,7 @@ if uploaded_file is not None:
                                 }
                             )
 
-                        # 2. Semakan Font & Saiz (Dikecualikan jika abaikan_appendix & is_appendix_page = True)
+                        # 2. SEMAKAN FONT & SAIZ
                         if not (abaikan_appendix and is_appendix_page):
                             font_name_clean = font_name.lower().replace(
                                 " ", ""
@@ -483,7 +483,45 @@ if uploaded_file is not None:
                                             }
                                         )
 
-        # 3. Semakan Nombor Muka Surat
+                        # 3. SEMAKAN TAJUK JADUAL & RAJAH (NEW FEATURE)
+                        if semak_caption:
+                            # A) Semak Tajuk Jadual (Must be ABOVE)
+                            if TABLE_REGEX.match(text):
+                                # Semak sama ada terdapat garisan grid jadual di atas tajuk ini
+                                table_above = False
+                                for d in drawings:
+                                    d_y1 = d["rect"][1]
+                                    # Jika garisan dikesan di atas tajuk (jarak < 100 pt)
+                                    if y0 - d_y1 > 0 and y0 - d_y1 < 120:
+                                        table_above = True
+                                        break
+                                if table_above:
+                                    page_errors.append(
+                                        {
+                                            "msg": f"Kedudukan Tajuk Jadual Salah (Mesti Di Atas Jadual): '{text[:30]}'",
+                                            "bbox": bbox,
+                                        }
+                                    )
+
+                            # B) Semak Tajuk Rajah (Must be BELOW)
+                            elif FIGURE_REGEX.match(text):
+                                figure_below = False
+                                # Semak jika tajuk rajah berada DI ATAS imej/elemen lukisan
+                                for img_info in page.get_image_info():
+                                    img_y0 = img_info["bbox"][1]
+                                    # Jika imej dikesan di bawah tajuk (jarak < 150 pt)
+                                    if img_y0 > y1 and img_y0 - y1 < 150:
+                                        figure_below = True
+                                        break
+                                if figure_below:
+                                    page_errors.append(
+                                        {
+                                            "msg": f"Kedudukan Tajuk Rajah Salah (Mesti Di Bawah Rajah): '{text[:30]}'",
+                                            "bbox": bbox,
+                                        }
+                                    )
+
+        # 4. SEMAKAN NOMBOR MUKA SURAT
         is_exempted_page = any(
             k in page_text_lower
             for k in [
@@ -527,7 +565,6 @@ if uploaded_file is not None:
             f"Muka Surat {page_num + 1}{tag_landscape} - ({status_icon})"
         ):
             col_img, col_details = st.columns([1, 1])
-
             doc_page = doc[page_num]
 
             for i, err in enumerate(unique_page_errors):
@@ -594,7 +631,6 @@ if uploaded_file is not None:
             )
         st.success("Fail PDF telah sedia untuk dimuat turun!")
 
-    # PAPARAN BUTANG HTML BASE64 (MENGELAKKAN IDM AUTO-DOWNLOAD)
     if (
         st.session_state.report_pdf_bytes is not None
         and st.session_state.annotated_pdf_bytes is not None
