@@ -6,34 +6,77 @@ import pymupdf as fitz
 import streamlit as st
 
 # ==========================================
-# 🔒 SISTEM KATA LALUAN MUDAH (SIMPLE AUTH)
+# 🔒 SISTEM KATA LALUAN, DISCLAIMER & LOG OUT
 # ==========================================
-PASSWORD_RAHSIA = "USM2026"  # Tukar kata laluan anda di sini
+PASSWORD_RAHSIA = "USM2026"  # Kata laluan akses
+APP_VERSION = "v1.0.0 (Prototaip)"
 
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
 
+
+# Fungsi Log Out (dipanggil di Sidebar nanti)
+def logout():
+    st.session_state.authenticated = False
+    st.rerun()
+
+
+# Paparan Borang Log Masuk (Jika Belum Authenticated)
 if not st.session_state.authenticated:
-    st.title("🔒 Semakan Format Tesis USM")
-    st.subheader("Sila masukkan kata laluan untuk mengakses sistem.")
+    st.title("📄 Semakan Format Tesis USM")
+    st.caption(f"📌 **Versi Sistem:** {APP_VERSION}")
 
-    # Menggunakan st.form supaya tiada auto-trigger bila klik di luar
-    with st.form("login_form"):
-        password_input = st.text_input("Kata Laluan Akses:", type="password")
-        submit_button = st.form_submit_button("Log Masuk")
+    st.markdown("---")
 
-        if submit_button:
-            if password_input == PASSWORD_RAHSIA:
-                st.session_state.authenticated = True
-                st.rerun()  # Muat semula halaman untuk membuka aplikasi utama
-            else:
-                st.error("🔑 Kata laluan salah. Sila cuba lagi!")
+    # 1. Kotak Borang Log Masuk
+    col_login, _ = st.columns([1.5, 1])
+    with col_login:
+        with st.form("login_form"):
+            st.subheader("🔒 Log Masuk Akses")
+            password_input = st.text_input(
+                "Masukkan Kata Laluan Akses:", type="password"
+            )
+            submit_button = st.form_submit_button(
+                "🔑 Log Masuk", use_container_width=True
+            )
+
+            if submit_button:
+                if password_input == PASSWORD_RAHSIA:
+                    st.session_state.authenticated = True
+                    st.rerun()
+                else:
+                    st.error("🔑 Kata laluan salah. Sila cuba lagi!")
+
+    st.markdown("---")
+
+    # 2. Kotak Penafian (Disclaimer) & Informasi Sistem
+    st.warning("""
+    ### ⚠️ Penafian (Disclaimer) & Panduan Penggunaan
+    1. **Sistem Bantu Semak Otomatik:** Aplikasi ini dibangunkan sebagai **alat bantuan awal** untuk mengesan ralat format utama (margin, font, & nombor muka surat).
+    2. **Kelulusan Rasmi:** Keputusan semakan aplikasi ini **bukan penentu mutlak**. Pengguna bertanggungjawab merujuk *Garis Panduan Penulisan Tesis USM* rasmi terkini.
+    3. **Kerahsiaan Fail:** Fail PDF yang dimuat naik diproses secara *in-memory* dan **tidak disimpan secara kekal** di dalam mana-mana pangkalan data server.
+    """)
+
+    st.info("""
+    💡 **Saranan Penggunaan:** 
+    Untuk hasil terbaik, pastikan dokumen tesis dimuat naik dalam format **PDF berkualiti tinggi** yang di-export terus daripada Microsoft Word atau LaTeX (bukan salinan yang di-scan).
+    """)
 
     st.stop()  # Hentikan kod aplikasi utama jika belum sahkan kata laluan
 
+
 # ==========================================
-# 🚀 KOD APLIKASI UTAMA ANDA BERMULA DI SINI
+# 🚀 KOD APLIKASI UTAMA BERMULA DI SINI
 # ==========================================
+
+# PAPARKAN BUTANG LOG OUT & INFO VERSI DI SIDEBAR
+with st.sidebar:
+    st.caption(f"📌 **Versi:** {APP_VERSION}")
+    if st.button("🚪 Log Out", type="secondary", use_container_width=True):
+        logout()
+    st.markdown("---")
+
+# (Kekalkan kod tetapan sidebar & penyemak tesis anda yang asal di bawah ini)
 # (Kekalkan semua kod asal aplikasi anda di bawah baris ini)
 
 st.set_page_config(
