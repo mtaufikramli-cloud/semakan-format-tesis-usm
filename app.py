@@ -6,6 +6,14 @@ import pymupdf as fitz
 import streamlit as st
 
 # ==========================================
+# ⚙️ TETAPAN AWAL APPLIKASI STREAMLIT
+# (Wajib diletakkan sebelum sebarang elemen GUI lain)
+# ==========================================
+st.set_page_config(
+    page_title="Semakan Format Tesis USM", layout="wide", page_icon="📄"
+)
+
+# ==========================================
 # 🔒 SISTEM KATA LALUAN, DISCLAIMER & LOG OUT
 # ==========================================
 PASSWORD_RAHSIA = "USM2026"  # Kata laluan akses
@@ -15,7 +23,7 @@ if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
 
 
-# Fungsi Log Out (dipanggil di Sidebar nanti)
+# Fungsi Log Out
 def logout():
     st.session_state.authenticated = False
     st.rerun()
@@ -28,7 +36,7 @@ if not st.session_state.authenticated:
 
     st.markdown("---")
 
-    # 1. Kotak Borang Log Masuk
+    # 1. Borang Log Masuk
     col_login, _ = st.columns([1.5, 1])
     with col_login:
         with st.form("login_form"):
@@ -62,109 +70,97 @@ if not st.session_state.authenticated:
     Untuk hasil terbaik, pastikan dokumen tesis dimuat naik dalam format **PDF berkualiti tinggi** yang di-export terus daripada Microsoft Word atau LaTeX (bukan salinan yang di-scan).
     """)
 
-    st.stop()  # Hentikan kod aplikasi utama jika belum sahkan kata laluan
+    st.stop()  # Hentikan kod jika belum sahkan kata laluan
 
 
 # ==========================================
-# 🚀 KOD APLIKASI UTAMA BERMULA DI SINI
+# 🚀 KOD APLIKASI UTAMA (SELEPAS LOG MASUK)
 # ==========================================
 
-# PAPARKAN BUTANG LOG OUT & INFO VERSI DI SIDEBAR
+# ==================== SIDEBAR & TETAPAN ====================
 with st.sidebar:
     st.caption(f"📌 **Versi:** {APP_VERSION}")
     if st.button("🚪 Log Out", type="secondary", use_container_width=True):
         logout()
     st.markdown("---")
+    st.header("⚙️ Tetapan Template Tesis")
 
-# (Kekalkan kod tetapan sidebar & penyemak tesis anda yang asal di bawah ini)
-# (Kekalkan semua kod asal aplikasi anda di bawah baris ini)
+    preset = st.selectbox(
+        "Pilih Templat Universiti",
+        ["USM (Universiti Sains Malaysia)", "Custom (Manual)"],
+    )
 
-st.header("⚙️ Tetapan Semakan")
-    
-    # 💡 TAMBAHAN BARU: Pilihan pengecualian Appendix
+    if preset == "USM (Universiti Sains Malaysia)":
+        default_left, default_right, default_top, default_bottom = (
+            1.57,
+            0.98,
+            0.98,
+            0.98,
+        )
+        default_fonts = [
+            "Times New Roman",
+            "TimesNewRoman",
+            "Arial",
+            "Calibri",
+            "Garamond",
+        ]
+    else:
+        default_left, default_right, default_top, default_bottom = (
+            1.50,
+            1.00,
+            1.00,
+            1.00,
+        )
+        default_fonts = ["Times New Roman", "Arial"]
+
+    margin_left_inch = st.number_input(
+        "Margin Kiri (Inci)",
+        min_value=0.5,
+        max_value=2.0,
+        value=default_left,
+        step=0.01,
+    )
+    margin_right_inch = st.number_input(
+        "Margin Kanan (Inci)",
+        min_value=0.5,
+        max_value=2.0,
+        value=default_right,
+        step=0.01,
+    )
+    margin_top_inch = st.number_input(
+        "Margin Atas (Inci)",
+        min_value=0.5,
+        max_value=2.0,
+        value=default_top,
+        step=0.01,
+    )
+    margin_bottom_inch = st.number_input(
+        "Margin Bawah (Inci)",
+        min_value=0.5,
+        max_value=2.0,
+        value=default_bottom,
+        step=0.01,
+    )
+
+    allowed_fonts = st.multiselect(
+        "Jenis Font Dibenarkan",
+        [
+            "Times New Roman",
+            "TimesNewRoman",
+            "Arial",
+            "Calibri",
+            "Garamond",
+            "Helvetica",
+        ],
+        default=default_fonts,
+    )
+
+    # 💡 Tetapan Pengecualian Font pada Lampiran / Appendix
     abaikan_appendix = st.checkbox(
-        "Abaikan Semakan Font pada Lampiran (Appendix)", 
+        "Abaikan Semakan Font pada Lampiran (Appendix)",
         value=True,
-        help="Jika diaktifkan, semakan jenis dan saiz font akan dikecualikan untuk muka surat Lampiran."
+        help="Jika diaktifkan, semakan jenis dan saiz font akan dikecualikan untuk muka surat Lampiran.",
     )
-
-st.set_page_config(
-    page_title="Semakan Format Tesis USM", layout="wide", page_icon="📄"
-)
-st.title("📄 Sistem Semakan Format Tesis (USM Standard)")
-
-# ==================== SIDEBAR: PRESET & TETAPAN ====================
-st.sidebar.header("⚙️ Tetapan Template Tesis")
-
-preset = st.sidebar.selectbox(
-    "Pilih Templat Universiti",
-    ["USM (Universiti Sains Malaysia)", "Custom (Manual)"],
-)
-
-if preset == "USM (Universiti Sains Malaysia)":
-    default_left, default_right, default_top, default_bottom = (
-        1.57,
-        0.98,
-        0.98,
-        0.98,
-    )
-    default_fonts = [
-        "Times New Roman",
-        "TimesNewRoman",
-        "Arial",
-        "Calibri",
-        "Garamond",
-    ]
-else:
-    default_left, default_right, default_top, default_bottom = (
-        1.50,
-        1.00,
-        1.00,
-        1.00,
-    )
-    default_fonts = ["Times New Roman", "Arial"]
-
-margin_left_inch = st.sidebar.number_input(
-    "Margin Kiri (Inci)",
-    min_value=0.5,
-    max_value=2.0,
-    value=default_left,
-    step=0.01,
-)
-margin_right_inch = st.sidebar.number_input(
-    "Margin Kanan (Inci)",
-    min_value=0.5,
-    max_value=2.0,
-    value=default_right,
-    step=0.01,
-)
-margin_top_inch = st.sidebar.number_input(
-    "Margin Atas (Inci)",
-    min_value=0.5,
-    max_value=2.0,
-    value=default_top,
-    step=0.01,
-)
-margin_bottom_inch = st.sidebar.number_input(
-    "Margin Bawah (Inci)",
-    min_value=0.5,
-    max_value=2.0,
-    value=default_bottom,
-    step=0.01,
-)
-
-allowed_fonts = st.sidebar.multiselect(
-    "Jenis Font Dibenarkan",
-    [
-        "Times New Roman",
-        "TimesNewRoman",
-        "Arial",
-        "Calibri",
-        "Garamond",
-        "Helvetica",
-    ],
-    default=default_fonts,
-)
 
 MATH_SYMBOL_FONTS = [
     "cambriamath",
@@ -290,7 +286,7 @@ def create_download_button_html(
 ):
     """Menjana link muat turun HTML menggunakan Base64 URI bagi mengelakkan auto-download IDM"""
     b64 = base64.b64encode(file_bytes).decode()
-    href = f'data:application/pdf;base64,{b64}'
+    href = f"data:application/pdf;base64,{b64}"
     html = f"""
     <a href="{href}" download="{filename}" style="text-decoration: none;">
         <div style="
@@ -313,6 +309,7 @@ def create_download_button_html(
 
 
 # ==================== KANDUNGAN UTAMA ====================
+st.title("📄 Sistem Semakan Format Tesis (USM Standard)")
 uploaded_file = st.file_uploader("Muat Naik Fail PDF Tesis", type=["pdf"])
 
 if uploaded_file is not None:
@@ -351,6 +348,13 @@ if uploaded_file is not None:
         rect = page.rect
         blocks = page.get_text("dict")["blocks"]
 
+        # Kesan jika muka surat ini adalah Lampiran (Appendix)
+        page_text_lower = page.get_text().lower()
+        is_appendix_page = any(
+            k in page_text_lower
+            for k in ["appendix", "appendices", "lampiran"]
+        )
+
         is_landscape = rect.width > rect.height
         page_errors = []
         has_pagenum = False
@@ -388,7 +392,10 @@ if uploaded_file is not None:
                         is_pagenum_candidate = False
                         clean_text = text.lower().strip(".- ")
 
-                        if clean_text.isdigit() or clean_text in ROMAN_NUMERALS:
+                        if (
+                            clean_text.isdigit()
+                            or clean_text in ROMAN_NUMERALS
+                        ):
                             if is_landscape:
                                 if (
                                     x0 < 80
@@ -406,7 +413,7 @@ if uploaded_file is not None:
                         if is_pagenum_candidate:
                             continue
 
-                        # 1. Semakan Margin
+                        # 1. Semakan Margin (Kekal disemak untuk semua muka surat)
                         if x0 < cur_m_left:
                             page_errors.append(
                                 {
@@ -436,48 +443,53 @@ if uploaded_file is not None:
                                 }
                             )
 
-                        # 2. Semakan Font
-                        font_name_clean = font_name.lower().replace(" ", "")
-                        is_math_font = any(
-                            mf in font_name_clean for mf in MATH_SYMBOL_FONTS
-                        )
-
-                        if not is_math_font:
-                            font_matched = any(
-                                f.lower().replace(" ", "") in font_name_clean
-                                for f in allowed_fonts
+                        # 2. Semakan Font & Saiz (Dikecualikan jika abaikan_appendix & is_appendix_page = True)
+                        if not (abaikan_appendix and is_appendix_page):
+                            font_name_clean = font_name.lower().replace(
+                                " ", ""
                             )
-                            if not font_matched and len(text) > 3:
-                                page_errors.append(
-                                    {
-                                        "msg": f"Jenis font tidak sah ({font_name}): '{text[:25]}...'",
-                                        "bbox": bbox,
-                                    }
-                                )
+                            is_math_font = any(
+                                mf in font_name_clean
+                                for mf in MATH_SYMBOL_FONTS
+                            )
 
-                            if len(text) > 5:
-                                if size < 8.0:
+                            if not is_math_font:
+                                font_matched = any(
+                                    f.lower().replace(" ", "")
+                                    in font_name_clean
+                                    for f in allowed_fonts
+                                )
+                                if not font_matched and len(text) > 3:
                                     page_errors.append(
                                         {
-                                            "msg": f"Saiz font terlalu kecil ({size}pt): '{text[:25]}...'",
+                                            "msg": f"Jenis font tidak sah ({font_name}): '{text[:25]}...'",
                                             "bbox": bbox,
                                         }
                                     )
-                                elif size > 12.5 and size < 18.0:
-                                    page_errors.append(
-                                        {
-                                            "msg": f"Saiz font terlalu besar ({size}pt): '{text[:25]}...'",
-                                            "bbox": bbox,
-                                        }
-                                    )
+
+                                if len(text) > 5:
+                                    if size < 8.0:
+                                        page_errors.append(
+                                            {
+                                                "msg": f"Saiz font terlalu kecil ({size}pt): '{text[:25]}...'",
+                                                "bbox": bbox,
+                                            }
+                                        )
+                                    elif size > 12.5 and size < 18.0:
+                                        page_errors.append(
+                                            {
+                                                "msg": f"Saiz font terlalu besar ({size}pt): '{text[:25]}...'",
+                                                "bbox": bbox,
+                                            }
+                                        )
 
         # 3. Semakan Nombor Muka Surat
-        page_text = page.get_text().lower()
         is_exempted_page = any(
-            k in page_text
+            k in page_text_lower
             for k in [
                 "appendix",
                 "appendices",
+                "lampiran",
                 "list of publications",
                 "publication",
             ]
