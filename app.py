@@ -156,32 +156,15 @@ MATH_SYMBOL_FONTS = [
     "segoeui-symbol",
 ]
 
-MARGIN_LEFT = (margin_left_inch * 72) - 10
-MARGIN_RIGHT = (margin_right_inch * 72) - 12
-MARGIN_TOP = (margin_top_inch * 72) - 8
-MARGIN_BOTTOM = (margin_bottom_inch * 72) - 8
+# Tukar margin inci kepada points (1 inci = 72 points) dengan toleransi kecerdasan sistem
+MARGIN_LEFT_PT = margin_left_inch * 72
+MARGIN_RIGHT_PT = margin_right_inch * 72
+MARGIN_TOP_PT = margin_top_inch * 72
+MARGIN_BOTTOM_PT = margin_bottom_inch * 72
 
 ROMAN_NUMERALS = [
-    "i",
-    "ii",
-    "iii",
-    "iv",
-    "v",
-    "vi",
-    "vii",
-    "viii",
-    "ix",
-    "x",
-    "xi",
-    "xii",
-    "xiii",
-    "xiv",
-    "xv",
-    "xvi",
-    "xvii",
-    "xviii",
-    "xix",
-    "xx",
+    "i", "ii", "iii", "iv", "v", "vi", "vii", "viii", "ix", "x",
+    "xi", "xii", "xiii", "xiv", "xv", "xvi", "xvii", "xviii", "xix", "xx"
 ]
 
 TABLE_PREFIX_REGEX = re.compile(
@@ -190,16 +173,10 @@ TABLE_PREFIX_REGEX = re.compile(
 FIGURE_PREFIX_REGEX = re.compile(
     r"^\s*(Figure|Rajah)\s+\d+(\.\d+)*", re.IGNORECASE
 )
-
-# 🟢 TAMBAHAN BARU: Pengesan sebutan dalam ayat seperti "Figure 3.5." atau "Figure 3.5 is..."
 IN_TEXT_CITATION_REGEX = re.compile(
     r"^\s*(Figure|Rajah|Table|Jadual)\s+\d+(\.\d+)*\.\s", re.IGNORECASE
 )
-
-# 🟢 TAMBAHAN BARU: Pengesan baris yang mengandungi titik-titik sambungan muka surat (dot leaders)
 DOT_LEADER_REGEX = re.compile(r"\.{3,}\s*\d+|\b\d+\s*$", re.IGNORECASE)
-
-# Kata kunci yang menunjukkan ia adalah ayat biasa, BUKAN tajuk/caption rasmi
 VERB_KEYWORDS_REGEX = re.compile(
     r"\b(provides|provide|shows|show|depicts|depict|illustrates|illustrate|presents|present|were|was|is|are|shows the|can be seen)\b",
     re.IGNORECASE,
@@ -336,28 +313,23 @@ if uploaded_file is not None:
 
     detected_issues = []
     all_pages_errors_list = []
-
-# 🟢 TAMBAHAN: Pembolehubah untuk kesan sambungan muka surat senarai
-# 🟢 Penjejak muka surat senarai
     is_previous_list_page = False
 
     for page_num in range(len(doc)):
         page = doc[page_num]
         rect = page.rect
         blocks = page.get_text("dict")["blocks"]
-
         images_info = page.get_image_info()
         drawings = page.get_drawings()
 
-        page_text_lower = page.get_text().lower()
         full_page_text = page.get_text()
+        page_text_lower = full_page_text.lower()
 
         is_appendix_page = any(
             k in page_text_lower
             for k in ["appendix", "appendices", "lampiran"]
         )
 
-        # 1. Semak tajuk rasmi muka surat senarai
         has_list_header = any(
             k in page_text_lower
             for k in [
@@ -370,237 +342,159 @@ if uploaded_file is not None:
             ]
         )
 
-        # 2. Semak jika muka surat mengandungi garisan titik-titik kandungan (dot leaders)
         has_dot_leaders = bool(DOT_LEADER_REGEX.search(full_page_text))
-
-        # 3. Muka surat dianggap muka surat senarai jika ada tajuk rasmi ATAU (muka surat sebelah ialah senarai DAN ada dot leaders/entri)
         is_list_page = has_list_header or (is_previous_list_page and has_dot_leaders)
-
-        # Simpan status untuk rujukan muka surat seterusnya
         is_previous_list_page = is_list_page
 
-    for page_num in range(len(doc)):
-        page = doc[page_num]
-        rect = page.rect
-        blocks = page.get_text("dict")["blocks"]
-    
-        images_info = page.get_image_info()
-        drawings = page.get_drawings()
-    
-        page_text_lower = page.get_text().lower()
-        is_appendix_page = any(
-            k in page_text_lower
-            for k in ["appendix", "appendices", "lampiran"]
-        )
+        is_landscape = rect.width > rect.height
+        page_errors = []
 
-    is_list_page = any(
-        k in page_text_lower
-        for k in [
-            "list of tables",
-            "list of figures",
-            "senarai jadual",
-            "senarai rajah",
-            "table of contents",
-            "kandungan",
-        ]
-    )
+        if is_landscape:
+            cur_m_bottom = rect.height - MARGIN_RIGHT_PT
+        else:
+            cur_m_bottom = rect.height - MARGIN_BOTTOM_PT
 
-    is_landscape = rect.width > rect.height
-    page_errors = []
-    has_pagenum = False
+        for b in blocks:
+            if "lines" in b:
+                for line in b["lines"]:
+                    full_line_text = "".join(
+                        [s["text"] for s in line["spans"]]
+                    ).strip()
 
-    # Tetapkan margin mengikut orientasi (dalam pixel / points)
-    # Bertukar mengikut cur_m_bottom yang betul
-    if is_landscape:
-        cur_m_left = MARGIN_TOP * 72
-        cur_m_right = rect.width - (MARGIN_BOTTOM * 72)
-        cur_m_top = MARGIN_LEFT * 72
-        cur_m_bottom = rect.height - (MARGIN_RIGHT * 72)
-    else:
-        cur_m_left = MARGIN_LEFT * 72
-        cur_m_right = rect.width - (MARGIN_RIGHT * 72)
-        cur_m_top = MARGIN_TOP * 72
-        cur_m_bottom = rect.height - (MARGIN_BOTTOM * 72)
+                    for span in line["spans"]:
+                        text = span["text"].strip()
+                        size = round(span["size"], 1)
+                        font_name = span["font"]
+                        bbox = span["bbox"]
 
-    for b in blocks:
-        if "lines" in b:
-            for line in b["lines"]:
-                full_line_text = "".join(
-                    [s["text"] for s in line["spans"]]
-                ).strip()
+                        if not text:
+                            continue
 
-                for span in line["spans"]:
-                    text = span["text"].strip()
-                    size = round(span["size"], 1)
-                    font_name = span["font"]
-                    bbox = span["bbox"]
+                        x0, y0, x1, y1 = bbox
+                        center_x, center_y = (x0 + x1) / 2, (y0 + y1) / 2
+                        clean_text = text.lower().strip(".- ")
 
-                    if not text:
-                        continue
+                        is_pagenum_candidate = False
+                        if clean_text.isdigit() or clean_text in ROMAN_NUMERALS:
+                            if is_landscape:
+                                if x0 < 100 and abs(center_y - (rect.height / 2)) < 150:
+                                    is_pagenum_candidate = True
+                            else:
+                                if y0 > (rect.height - 100) and abs(center_x - (rect.width / 2)) < 150:
+                                    is_pagenum_candidate = True
 
-                    x0, y0, x1, y1 = bbox
-                    center_x, center_y = (x0 + x1) / 2, (y0 + y1) / 2
+                        if is_pagenum_candidate:
+                            continue
 
-                    is_pagenum_candidate = False
-                    clean_text = text.lower().strip(".- ")
+                        clean_line = full_line_text.strip().lower()
+                        is_pg_num = clean_line.isdigit() or clean_line in ROMAN_NUMERALS
 
-                    # 1. Semakan Pengesanan Nombor Muka Surat
-                    if (
-                        clean_text.isdigit()
-                        or clean_text in ROMAN_NUMERALS
-                    ):
-                        if is_landscape:
-                            if (
-                                x0 < 100
-                                and abs(center_y - (rect.height / 2)) < 150
-                            ):
-                                has_pagenum = True
-                                is_pagenum_candidate = True
-                        else:
-                            # 🟢 Luaskan zon y0 ke 100pt dari bawah supaya 'xxii' dikesan
-                            if y0 > (
-                                rect.height - 100
-                            ) and abs(center_x - (rect.width / 2)) < 150:
-                                has_pagenum = True
-                                is_pagenum_candidate = True
-
-                    # Jika disahkan sebagai nombor m/s, abaikan semakan margin/font biasa
-                    if is_pagenum_candidate:
-                        continue
-
-                    # 🟢 2. SEMAKAN MARGIN BAWAH & LAIN-LAIN (SELAMAT DARIPADA NAMEERROR)
-                    clean_line = full_line_text.strip().lower()
-                    is_pg_num = clean_line.isdigit() or clean_line in ROMAN_NUMERALS
-
-                    # Pengecualian khas jika ia adalah nombor m/s di zon bawah
-                    if is_pg_num and y0 > (rect.height - 100):
-                        pass
-                    else:
-                        # Guna cur_m_bottom (bukan margin_bottom_px)
-                        if y1 > cur_m_bottom:
-                            page_errors.append(
-                                {
-                                    "msg": f"Luar Margin Bawah: '{full_line_text[:20]}...'",
-                                    "bbox": bbox,
-                                }
-                            )
-
-                        # 2. SEMAKAN FONT & SAIZ
-                        if not (abaikan_appendix and is_appendix_page):
-                            font_name_clean = font_name.lower().replace(
-                                " ", ""
-                            )
-                            is_math_font = any(
-                                mf in font_name_clean
-                                for mf in MATH_SYMBOL_FONTS
-                            )
-
-                            if not is_math_font:
-                                font_matched = any(
-                                    f.lower().replace(" ", "")
-                                    in font_name_clean
-                                    for f in allowed_fonts
+                        if not (is_pg_num and y0 > (rect.height - 100)):
+                            if y1 > cur_m_bottom:
+                                page_errors.append(
+                                    {
+                                        "msg": f"Luar Margin Bawah: '{full_line_text[:20]}...'",
+                                        "bbox": bbox,
+                                    }
                                 )
-                                if not font_matched and len(text) > 3:
-                                    page_errors.append(
-                                        {
-                                            "msg": f"Jenis font tidak sah ({font_name}): '{text[:25]}...'",
-                                            "bbox": bbox,
-                                        }
-                                    )
 
-                                if len(text) > 5:
-                                    if size < 8.0:
+                            if not (abaikan_appendix and is_appendix_page):
+                                font_name_clean = font_name.lower().replace(" ", "")
+                                is_math_font = any(
+                                    mf in font_name_clean for mf in MATH_SYMBOL_FONTS
+                                )
+
+                                if not is_math_font:
+                                    font_matched = any(
+                                        f.lower().replace(" ", "") in font_name_clean
+                                        for f in allowed_fonts
+                                    )
+                                    if not font_matched and len(text) > 3:
                                         page_errors.append(
                                             {
-                                                "msg": f"Saiz font terlalu kecil ({size}pt): '{text[:25]}...'",
-                                                "bbox": bbox,
-                                            }
-                                        )
-                                    elif size > 12.5 and size < 18.0:
-                                        page_errors.append(
-                                            {
-                                                "msg": f"Saiz font terlalu besar ({size}pt): '{text[:25]}...'",
+                                                "msg": f"Jenis font tidak sah ({font_name}): '{text[:25]}...'",
                                                 "bbox": bbox,
                                             }
                                         )
 
-                        # 3. SEMAKAN TAJUK JADUAL & RAJAH (DIKEMASKINI: TAPIS IN-TEXT CITATION)
-                        if semak_caption and not is_list_page:
-                            is_dot_leader_line = bool(DOT_LEADER_REGEX.search(full_line_text))
+                                    if len(text) > 5:
+                                        if size < 8.0:
+                                            page_errors.append(
+                                                {
+                                                    "msg": f"Saiz font terlalu kecil ({size}pt): '{text[:25]}...'",
+                                                    "bbox": bbox,
+                                                }
+                                            )
+                                        elif 12.5 < size < 18.0:
+                                            page_errors.append(
+                                                {
+                                                    "msg": f"Saiz font terlalu besar ({size}pt): '{text[:25]}...'",
+                                                    "bbox": bbox,
+                                                }
+                                            )
 
-                            is_sentence = bool(
-                                VERB_KEYWORDS_REGEX.search(full_line_text)
-                            )
-                            
-                            # 🟢 Tapis jika ia sekadar sebutan dalam ayat seperti "Figure 3.5."
-                            is_in_text_citation = bool(
-                                IN_TEXT_CITATION_REGEX.match(full_line_text)
-                            )
+                            if semak_caption and not is_list_page:
+                                is_dot_leader_line = bool(DOT_LEADER_REGEX.search(full_line_text))
+                                is_sentence = bool(VERB_KEYWORDS_REGEX.search(full_line_text))
+                                is_in_text_citation = bool(IN_TEXT_CITATION_REGEX.match(full_line_text))
 
-                            # A) Semak Tajuk Jadual (Mesti di ATAS Jadual)
-                            if (
-                                TABLE_PREFIX_REGEX.match(full_line_text)
-                                and not is_sentence
-                                and not is_dot_leader_line
-                                and not is_in_text_citation
-                            ):
-                                table_below_close = False
-                                for d in drawings:
-                                    d_y0 = d["rect"][1]
-                                    # Jarak dari tajuk ke jadual ( toleransi < 50pt )
-                                    if 0 < (d_y0 - y1) < 50:
-                                        table_below_close = True
-                                        break
+                                if (
+                                    TABLE_PREFIX_REGEX.match(full_line_text)
+                                    and not is_sentence
+                                    and not is_dot_leader_line
+                                    and not is_in_text_citation
+                                ):
+                                    table_below_close = False
+                                    for d in drawings:
+                                        d_y0 = d["rect"][1]
+                                        if 0 < (d_y0 - y1) < 50:
+                                            table_below_close = True
+                                            break
 
-                                if not table_below_close:
-                                    page_errors.append(
-                                        {
-                                            "msg": f"Kedudukan Tajuk Jadual Salah (Mesti Di Atas Jadual): '{full_line_text[:35]}...'",
-                                            "bbox": bbox,
-                                        }
-                                    )
+                                    if not table_below_close:
+                                        page_errors.append(
+                                            {
+                                                "msg": f"Kedudukan Tajuk Jadual Salah (Mesti Di Atas Jadual): '{full_line_text[:35]}...'",
+                                                "bbox": bbox,
+                                            }
+                                        )
 
-                                # 🟢 TAMBAHAN BARU: Semak jika Tajuk Jadual Terlangkau / Terpisah Baris (Contoh: 'Table 4.2.' sahaja di satu baris)
-                                # Jika baris tersebut HANYA mengandungi nombor jadual (contoh len < 15 aksara tanpa penerangan)
-                                clean_title_text = full_line_text.strip()
-                                if re.match(r"^(Table|Jadual)\s+\d+(\.\d+)*\.?$", clean_title_text, re.IGNORECASE):
-                                    page_errors.append(
-                                        {
-                                            "msg": f"Format Tajuk Jadual Terlangkau/Terpisah Baris: '{clean_title_text}' (Sepatutnya sebaris dengan penerangan)",
-                                            "bbox": bbox,
-                                        }
-                                    )
+                                    clean_title_text = full_line_text.strip()
+                                    if re.match(r"^(Table|Jadual)\s+\d+(\.\d+)*\.?$", clean_title_text, re.IGNORECASE):
+                                        page_errors.append(
+                                            {
+                                                "msg": f"Format Tajuk Jadual Terlangkau/Terpisah Baris: '{clean_title_text}' (Sepatutnya sebaris dengan penerangan)",
+                                                "bbox": bbox,
+                                            }
+                                        )
 
-                            # B) Semak Tajuk Rajah (Mesti di BAWAH Rajah)
-                            elif (
-                                FIGURE_PREFIX_REGEX.match(full_line_text)
-                                and not is_sentence
-                                and not is_dot_leader_line
-                                and not is_in_text_citation
-                            ):
-                                image_above_close = False
-                                image_below_close = False
+                                elif (
+                                    FIGURE_PREFIX_REGEX.match(full_line_text)
+                                    and not is_sentence
+                                    and not is_dot_leader_line
+                                    and not is_in_text_citation
+                                ):
+                                    image_above_close = False
+                                    image_below_close = False
 
-                                for img in images_info:
-                                    img_y0 = img["bbox"][1]
-                                    img_y1 = img["bbox"][3]
+                                    for img in images_info:
+                                        img_y0 = img["bbox"][1]
+                                        img_y1 = img["bbox"][3]
 
-                                    if 0 < (y0 - img_y1) < 50:
-                                        image_above_close = True
+                                        if 0 < (y0 - img_y1) < 50:
+                                            image_above_close = True
 
-                                    if 0 < (img_y0 - y1) < 30:
-                                        image_below_close = True
+                                        if 0 < (img_y0 - y1) < 30:
+                                            image_below_close = True
 
-                                if image_below_close and not image_above_close:
-                                    page_errors.append(
-                                        {
-                                            "msg": f"Kedudukan Tajuk Rajah Salah (Mesti Di Bawah Rajah): '{full_line_text[:35]}...'",
-                                            "bbox": bbox,
-                                        }
-                                    )
+                                    if image_below_close and not image_above_close:
+                                        page_errors.append(
+                                            {
+                                                "msg": f"Kedudukan Tajuk Rajah Salah (Mesti Di Bawah Rajah): '{full_line_text[:35]}...'",
+                                                "bbox": bbox,
+                                            }
+                                        )
 
-        # 4. SEMAKAN NOMBOR MUKA SURAT
         is_exempted_page = any(
             k in page_text_lower
             for k in [
@@ -612,39 +506,25 @@ if uploaded_file is not None:
             ]
         )
 
-        # 🟢 4. SEMAKAN NOMBOR MUKA SURAT (DIPERBAIKI UNTUK LANDSCAPE & ROTATED TEXT)
         if page_num >= 2 and not is_exempted_page:
             has_pagenum_found = False
+            words = page.get_text("words")
 
             if is_landscape:
-                # Untuk Landscape: Nombor m/s berada di kawasan sebelah kiri (X < 120pt)
-                # Gunakan get_text("words") untuk kesan teks yang dirotasikan 90/270 darjah
-                words = page.get_text("words")
                 for w in words:
-                    x0, y0, x1, y1, word_text = w[0], w[1], w[2], w[3], w[4]
-                    clean_w = word_text.lower().strip(".- ()")
-
-                    # Jika berada di zon margin kiri (X < 120) DAN merupakan nombor / angka roman
+                    x0, clean_w = w[0], w[4].lower().strip(".- ()")
                     if x0 < 120 and (clean_w.isdigit() or clean_w in ROMAN_NUMERALS):
                         has_pagenum_found = True
                         break
             else:
-                # Untuk Portrait: Nombor m/s berada di bahagian bawah (Y > height - 80)
-                words = page.get_text("words")
-                # 🟢 LUASKAN ZON CARIAN ( height - 100 )
                 for w in words:
-                    x0, y0, x1, y1, word_text = w[0], w[1], w[2], w[3], w[4]
-                    clean_w = word_text.lower().strip(".- ()")
-
+                    y0, clean_w = w[1], w[4].lower().strip(".- ()")
                     if y0 > (rect.height - 100) and (clean_w.isdigit() or clean_w in ROMAN_NUMERALS):
                         has_pagenum_found = True
                         break
 
-            # JIKA SUNGGUH-SUNGGUH TIADA NOMBOR M/S, BARULAH KELUARKAN RALAT
             if not has_pagenum_found:
-                loc_label = (
-                    "sebelah kiri" if is_landscape else "bahagian bawah tengah"
-                )
+                loc_label = "sebelah kiri" if is_landscape else "bahagian bawah tengah"
                 page_errors.append(
                     {
                         "msg": f"Nombor muka surat tidak dikesan di {loc_label}.",
