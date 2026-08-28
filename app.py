@@ -329,6 +329,49 @@ if uploaded_file is not None:
     detected_issues = []
     all_pages_errors_list = []
 
+# 🟢 TAMBAHAN: Pembolehubah untuk kesan sambungan muka surat senarai
+    is_previous_list_page = False
+
+    for page_num in range(len(doc)):
+        page = doc[page_num]
+        rect = page.rect
+        blocks = page.get_text("dict")["blocks"]
+
+        images_info = page.get_image_info()
+        drawings = page.get_drawings()
+
+        page_text_lower = page.get_text().lower()
+        full_page_text = page.get_text()
+
+        is_appendix_page = any(
+            k in page_text_lower
+            for k in ["appendix", "appendices", "lampiran"]
+        )
+        
+        # 1. Semak jika ada tajuk rasmi muka surat senarai
+        has_list_header = any(
+            k in page_text_lower
+            for k in [
+                "list of tables",
+                "list of figures",
+                "senarai jadual",
+                "senarai rajah",
+                "table of contents",
+                "kandungan",
+            ]
+        )
+
+        # 2. Semak jika muka surat ini mengandungi corak entri senarai (Contoh: Table 4.11 / Figure 2.1)
+        has_list_entries = bool(
+            TABLE_PREFIX_REGEX.search(full_page_text) or FIGURE_PREFIX_REGEX.search(full_page_text)
+        )
+
+        # 3. Muka surat dianggap Muka Surat Senarai JIKA ada tajuk rasmi ATAU (muka surat sebelah ialah senarai DAN ada entri sambungan)
+        is_list_page = has_list_header or (is_previous_list_page and has_list_entries)
+
+        # Simpan status untuk rujukan muka surat seterusnya
+        is_previous_list_page = is_list_page
+
     for page_num in range(len(doc)):
         page = doc[page_num]
         rect = page.rect
