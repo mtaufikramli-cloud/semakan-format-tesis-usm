@@ -380,18 +380,18 @@ if uploaded_file is not None:
         is_previous_list_page = is_list_page
 
     for page_num in range(len(doc)):
-    page = doc[page_num]
-    rect = page.rect
-    blocks = page.get_text("dict")["blocks"]
-
-    images_info = page.get_image_info()
-    drawings = page.get_drawings()
-
-    page_text_lower = page.get_text().lower()
-    is_appendix_page = any(
-        k in page_text_lower
-        for k in ["appendix", "appendices", "lampiran"]
-    )
+        page = doc[page_num]
+        rect = page.rect
+        blocks = page.get_text("dict")["blocks"]
+    
+        images_info = page.get_image_info()
+        drawings = page.get_drawings()
+    
+        page_text_lower = page.get_text().lower()
+        is_appendix_page = any(
+            k in page_text_lower
+            for k in ["appendix", "appendices", "lampiran"]
+        )
 
     is_list_page = any(
         k in page_text_lower
