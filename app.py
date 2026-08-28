@@ -483,27 +483,23 @@ if uploaded_file is not None:
                                 VERB_KEYWORDS_REGEX.search(full_line_text)
                             )
 
-                            # A) Semak Tajuk Jadual (Mesti di ATAS Jadual)
-                            if (
-                                TABLE_PREFIX_REGEX.match(full_line_text)
-                                and not is_sentence
-                            ):
-                                # Jadual dikesan melalui lukisan garisan (drawings)
-                                # Sahkan jika ada garisan jadual DI ATAS tajuk ini (jarak sangat dekat, e.g. < 40 pt)
-                                table_above_close = False
-                                for d in drawings:
-                                    d_y1 = d["rect"][3]
-                                    if 0 < (y0 - d_y1) < 40:
-                                        table_above_close = True
-                                        break
+                            # C) Semak Tajuk Jadual (Mesti di ATAS Jadual)
+if TABLE_PREFIX_REGEX.match(full_line_text) and not is_sentence:
+    table_below_close = False
+    
+    # Semak sama ada terdapat garisan jadual (drawings) DI BAWAH tajuk dalam jarak rapat (y-offset < 40pt)
+    for d in drawings:
+        d_y0 = d["rect"][1] # Garisan atas jadual
+        if 0 < (d_y0 - y1) < 40:
+            table_below_close = True
+            break
 
-                                if table_above_close:
-                                    page_errors.append(
-                                        {
-                                            "msg": f"Kedudukan Tajuk Jadual Salah (Mesti Di Atas Jadual): '{full_line_text[:35]}...'",
-                                            "bbox": bbox,
-                                        }
-                                    )
+    # Ralat HANYA dikeluarkan jika TIADA jadual di bawah tajuk ini
+    if not table_below_close:
+        page_errors.append({
+            "msg": f"Kedudukan Tajuk Jadual Salah (Mesti Di Atas Jadual): '{full_line_text[:35]}...'",
+            "bbox": bbox
+        })
 
                             # B) Semak Tajuk Rajah (Mesti di BAWAH Rajah)
                             elif (
