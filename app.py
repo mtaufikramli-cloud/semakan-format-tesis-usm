@@ -177,9 +177,22 @@ IN_TEXT_CITATION_REGEX = re.compile(
     r"^\s*(Figure|Rajah|Table|Jadual)\s+\d+(\.\d+)*\.\s", re.IGNORECASE
 )
 DOT_LEADER_REGEX = re.compile(r"\.{3,}\s*\d+|\b\d+\s*$", re.IGNORECASE)
+# Perkataan yang menandakan baris tersebut ialah ayat teks biasa (bukan tajuk jadual/rajah)
 VERB_KEYWORDS_REGEX = re.compile(
-    r"\b(provides|provide|shows|show|depicts|depict|illustrates|illustrate|presents|present|were|was|is|are|shows the|can be seen)\b",
-    re.IGNORECASE,
+    r"\b("
+    r"shows?|showing|showed|"
+    r"presents?|presenting|presented|"
+    r"summarizes?|summarised|summarising|summarize|summarise|summary|"
+    r"illustrates?|illustrating|illustrated|"
+    r"depicts?|depicting|depicted|"
+    r"lists?|listing|listed|"
+    r"compares?|comparing|compared|"
+    r"indicates?|indicating|indicated|"
+    r"displays?|displaying|displayed|"
+    r"describes?|describing|described|"
+    r"menunjukkan|menyenaraikan|mencatatkan|memaparkan|menggambarkan|merumuskan|membandingkan"
+    r")\b",
+    re.IGNORECASE
 )
 
 
