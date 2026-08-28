@@ -68,6 +68,26 @@ if not st.session_state.authenticated:
     2. **Kelulusan Rasmi:** Keputusan semakan aplikasi ini **bukan penentu mutlak**. Pengguna bertanggungjawab merujuk *Garis Panduan Penulisan Tesis USM* rasmi.
     3. **Kerahsiaan Fail:** Fail PDF diproses secara *in-memory* dan **tidak disimpan secara kekal**.
     """)
+
+    # ==================== FOOTER HAK CIPTA & DOKUMEN ====================
+    st.markdown("---")
+    st.markdown(
+        """
+        <div style="text-align: center; color: #4b5563; font-size: 0.85rem; line-height: 1.6; background-color: #f9fafb; padding: 15px; border-radius: 8px; border: 1px solid #e5e7eb;">
+            <p style="margin-bottom: 4px; font-weight: bold; color: #1f2937;">
+                © 2026 Ts. Muhammad Taufik Ramli / KV Nibong Tebal. Hak Cipta Terpelihara (All Rights Reserved).
+            </p>
+            <p style="margin-bottom: 4px;">
+                📍 Program Teknologi Elektronik, Kolej Vokasional Nibong Tebal, Jalan Bukit Panchor, 14300 Nibong Tebal, Pulau Pinang
+            </p>
+            <p style="margin-bottom: 0;">
+                📧 Hubungi Sokongan: <a href="mailto:mtaufikramli@gmail.com" style="color: #2563eb; text-decoration: none; font-weight: 500;">mtaufikramli@gmail.com</a>
+            </p>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
     st.stop()
 
 # ==================== SIDEBAR & TETAPAN ====================
