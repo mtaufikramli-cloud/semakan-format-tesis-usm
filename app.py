@@ -191,6 +191,11 @@ FIGURE_PREFIX_REGEX = re.compile(
     r"^\s*(Figure|Rajah)\s+\d+(\.\d+)*", re.IGNORECASE
 )
 
+# 🟢 TAMBAHAN BARU: Pengesan sebutan dalam ayat seperti "Figure 3.5." atau "Figure 3.5 is..."
+IN_TEXT_CITATION_REGEX = re.compile(
+    r"^\s*(Figure|Rajah|Table|Jadual)\s+\d+(\.\d+)*\.\s", re.IGNORECASE
+)
+
 # 🟢 TAMBAHAN BARU: Pengesan baris yang mengandungi titik-titik sambungan muka surat (dot leaders)
 DOT_LEADER_REGEX = re.compile(r"\.{3,}\s*\d+|\b\d+\s*$", re.IGNORECASE)
 
@@ -532,20 +537,25 @@ if uploaded_file is not None:
                                             }
                                         )
 
-                        # 3. SEMAKAN TAJUK JADUAL & RAJAH (DIKEMASKINI: ABAIKAN MUKA SURAT SENARAI)
-                        # 3. SEMAKAN TAJUK JADUAL & RAJAH
+                        # 3. SEMAKAN TAJUK JADUAL & RAJAH (DIKEMASKINI: TAPIS IN-TEXT CITATION)
                         if semak_caption and not is_list_page:
                             is_dot_leader_line = bool(DOT_LEADER_REGEX.search(full_line_text))
 
                             is_sentence = bool(
                                 VERB_KEYWORDS_REGEX.search(full_line_text)
                             )
+                            
+                            # 🟢 Tapis jika ia sekadar sebutan dalam ayat seperti "Figure 3.5."
+                            is_in_text_citation = bool(
+                                IN_TEXT_CITATION_REGEX.match(full_line_text)
+                            )
 
-                            # A) Semak Tajuk Jadual (Mesti di permulaan baris & di ATAS Jadual)
+                            # A) Semak Tajuk Jadual (Mesti di ATAS Jadual)
                             if (
                                 TABLE_PREFIX_REGEX.match(full_line_text)
                                 and not is_sentence
                                 and not is_dot_leader_line
+                                and not is_in_text_citation
                             ):
                                 table_below_close = False
                                 for d in drawings:
@@ -562,11 +572,12 @@ if uploaded_file is not None:
                                         }
                                     )
 
-                            # B) Semak Tajuk Rajah (Mesti di permulaan baris & di BAWAH Rajah)
+                            # B) Semak Tajuk Rajah (Mesti di BAWAH Rajah)
                             elif (
                                 FIGURE_PREFIX_REGEX.match(full_line_text)
                                 and not is_sentence
                                 and not is_dot_leader_line
+                                and not is_in_text_citation
                             ):
                                 image_above_close = False
                                 image_below_close = False
