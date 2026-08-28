@@ -79,6 +79,15 @@ with st.sidebar:
 # (Kekalkan kod tetapan sidebar & penyemak tesis anda yang asal di bawah ini)
 # (Kekalkan semua kod asal aplikasi anda di bawah baris ini)
 
+st.header("⚙️ Tetapan Semakan")
+    
+    # 💡 TAMBAHAN BARU: Pilihan pengecualian Appendix
+    abaikan_appendix = st.checkbox(
+        "Abaikan Semakan Font pada Lampiran (Appendix)", 
+        value=True,
+        help="Jika diaktifkan, semakan jenis dan saiz font akan dikecualikan untuk muka surat Lampiran."
+    )
+
 st.set_page_config(
     page_title="Semakan Format Tesis USM", layout="wide", page_icon="📄"
 )
