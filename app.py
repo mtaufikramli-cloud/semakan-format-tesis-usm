@@ -380,124 +380,110 @@ if uploaded_file is not None:
         is_previous_list_page = is_list_page
 
     for page_num in range(len(doc)):
-        page = doc[page_num]
-        rect = page.rect
-        blocks = page.get_text("dict")["blocks"]
+    page = doc[page_num]
+    rect = page.rect
+    blocks = page.get_text("dict")["blocks"]
 
-        images_info = page.get_image_info()
-        drawings = page.get_drawings()
+    images_info = page.get_image_info()
+    drawings = page.get_drawings()
 
-        page_text_lower = page.get_text().lower()
-        is_appendix_page = any(
-            k in page_text_lower
-            for k in ["appendix", "appendices", "lampiran"]
-        )
+    page_text_lower = page.get_text().lower()
+    is_appendix_page = any(
+        k in page_text_lower
+        for k in ["appendix", "appendices", "lampiran"]
+    )
 
-        is_list_page = any(
-            k in page_text_lower
-            for k in [
-                "list of tables",
-                "list of figures",
-                "senarai jadual",
-                "senarai rajah",
-                "table of contents",
-                "kandungan",
-            ]
-        )
+    is_list_page = any(
+        k in page_text_lower
+        for k in [
+            "list of tables",
+            "list of figures",
+            "senarai jadual",
+            "senarai rajah",
+            "table of contents",
+            "kandungan",
+        ]
+    )
 
-        is_landscape = rect.width > rect.height
-        page_errors = []
-        has_pagenum = False
+    is_landscape = rect.width > rect.height
+    page_errors = []
+    has_pagenum = False
 
-        if is_landscape:
-            cur_m_left, cur_m_right, cur_m_top, cur_m_bottom = (
-                MARGIN_TOP,
-                MARGIN_BOTTOM,
-                MARGIN_LEFT,
-                MARGIN_RIGHT,
-            )
-        else:
-            cur_m_left, cur_m_right, cur_m_top, cur_m_bottom = (
-                MARGIN_LEFT,
-                MARGIN_RIGHT,
-                MARGIN_TOP,
-                MARGIN_BOTTOM,
-            )
+    # Tetapkan margin mengikut orientasi (dalam pixel / points)
+    # Bertukar mengikut cur_m_bottom yang betul
+    if is_landscape:
+        cur_m_left = MARGIN_TOP * 72
+        cur_m_right = rect.width - (MARGIN_BOTTOM * 72)
+        cur_m_top = MARGIN_LEFT * 72
+        cur_m_bottom = rect.height - (MARGIN_RIGHT * 72)
+    else:
+        cur_m_left = MARGIN_LEFT * 72
+        cur_m_right = rect.width - (MARGIN_RIGHT * 72)
+        cur_m_top = MARGIN_TOP * 72
+        cur_m_bottom = rect.height - (MARGIN_BOTTOM * 72)
 
-        for b in blocks:
-            if "lines" in b:
-                for line in b["lines"]:
-                    full_line_text = "".join(
-                        [s["text"] for s in line["spans"]]
-                    ).strip()
+    for b in blocks:
+        if "lines" in b:
+            for line in b["lines"]:
+                full_line_text = "".join(
+                    [s["text"] for s in line["spans"]]
+                ).strip()
 
-                    for span in line["spans"]:
-                        text = span["text"].strip()
-                        size = round(span["size"], 1)
-                        font_name = span["font"]
-                        bbox = span["bbox"]
+                for span in line["spans"]:
+                    text = span["text"].strip()
+                    size = round(span["size"], 1)
+                    font_name = span["font"]
+                    bbox = span["bbox"]
 
-                        if not text:
-                            continue
+                    if not text:
+                        continue
 
-                        x0, y0, x1, y1 = bbox
-                        center_x, center_y = (x0 + x1) / 2, (y0 + y1) / 2
+                    x0, y0, x1, y1 = bbox
+                    center_x, center_y = (x0 + x1) / 2, (y0 + y1) / 2
 
-                        is_pagenum_candidate = False
-                        clean_text = text.lower().strip(".- ")
+                    is_pagenum_candidate = False
+                    clean_text = text.lower().strip(".- ")
 
-                        if (
-                            clean_text.isdigit()
-                            or clean_text in ROMAN_NUMERALS
-                        ):
-                            if is_landscape:
-                                if (
-                                    x0 < 80
-                                    and abs(center_y - (rect.height / 2)) < 150
-                                ):
-                                    has_pagenum = True
-                                    is_pagenum_candidate = True
-                            else:
-                                if y0 > (
-                                    rect.height - 70
-                                ) and abs(center_x - (rect.width / 2)) < 120:
-                                    has_pagenum = True
-                                    is_pagenum_candidate = True
-
-                        if is_pagenum_candidate:
-                            continue
-
-                        # 🟢 1. SEMAKAN MARGIN (DIKEMASKINI & SELAMAT NAMEERROR)
-                        x0, y0, x1, y1 = bbox  # Ambil koordinat y1 dengan betul dari bbox
-
-                        clean_text = full_line_text.strip().lower()
-                        is_pg_num = clean_text.isdigit() or clean_text in ROMAN_NUMERALS
-
-                        # Jika teks berada di zon bawah DAN ia adalah nombor m/s, abaikan semakan margin bawah
-                        if is_pg_num and y0 > (rect.height - 100):
-                            pass
+                    # 1. Semakan Pengesanan Nombor Muka Surat
+                    if (
+                        clean_text.isdigit()
+                        or clean_text in ROMAN_NUMERALS
+                    ):
+                        if is_landscape:
+                            if (
+                                x0 < 100
+                                and abs(center_y - (rect.height / 2)) < 150
+                            ):
+                                has_pagenum = True
+                                is_pagenum_candidate = True
                         else:
-                            if y1 > margin_bottom_px:
-                                page_errors.append(
-                                    {
-                                        "msg": f"Luar Margin Bawah: '{full_line_text[:20]}...'",
-                                        "bbox": bbox,
-                                    }
-                                )
+                            # 🟢 Luaskan zon y0 ke 100pt dari bawah supaya 'xxii' dikesan
+                            if y0 > (
+                                rect.height - 100
+                            ) and abs(center_x - (rect.width / 2)) < 150:
+                                has_pagenum = True
+                                is_pagenum_candidate = True
 
-                        # 🟢 KEMASKINI: Abaikan semakan margin bawah JIKA ia adalah nombor muka surat
-                        clean_text = full_line_text.strip().lower()
-                        is_pg_num = clean_text.isdigit() or clean_text in ROMAN_NUMERALS
-                        
-                        # Jika teks berada di zon bawah DAN ia adalah nombor m/s, JANGAN anggap ralat margin
-                        if is_pg_num and y0 > (rect.height - 100):
-                            pass  # Serahkan kepada semakan nombor muka surat
-                        else:
-                            if y1 > margin_bottom_px:
-                                page_errors.append({
+                    # Jika disahkan sebagai nombor m/s, abaikan semakan margin/font biasa
+                    if is_pagenum_candidate:
+                        continue
+
+                    # 🟢 2. SEMAKAN MARGIN BAWAH & LAIN-LAIN (SELAMAT DARIPADA NAMEERROR)
+                    clean_line = full_line_text.strip().lower()
+                    is_pg_num = clean_line.isdigit() or clean_line in ROMAN_NUMERALS
+
+                    # Pengecualian khas jika ia adalah nombor m/s di zon bawah
+                    if is_pg_num and y0 > (rect.height - 100):
+                        pass
+                    else:
+                        # Guna cur_m_bottom (bukan margin_bottom_px)
+                        if y1 > cur_m_bottom:
+                            page_errors.append(
+                                {
                                     "msg": f"Luar Margin Bawah: '{full_line_text[:20]}...'",
-                                    "bbox": bbox
-                                })
+                                    "bbox": bbox,
+                                }
+                            )
 
                         # 2. SEMAKAN FONT & SAIZ
                         if not (abaikan_appendix and is_appendix_page):
