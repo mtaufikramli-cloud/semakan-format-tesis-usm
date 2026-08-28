@@ -5,13 +5,27 @@ from fpdf import FPDF
 from PIL import Image
 import pymupdf as fitz
 import streamlit as st
+import streamlit.components.v1 as components
 
 # ==========================================
 # ⚙️ TETAPAN AWAL APPLIKASI STREAMLIT
 # ==========================================
+# 1. Panggilan st.set_page_config mesti dipanggil dahulu dan berdiri sendiri
 st.set_page_config(
-    page_title="Semakan Format Tesis USM", layout="wide", page_icon="📄"
+    page_title="Semakan Format Tesis USM",
+    layout="wide",
+    page_icon="📄"
 )
+
+# 2. Barulah letak st.markdown untuk CSS & Anchor di bawahnya
+st.markdown("""
+    <style>
+        html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"] {
+            scroll-behavior: smooth !important;
+        }
+    </style>
+    <div id="top-anchor"></div>
+""", unsafe_allow_html=True)
 
 PASSWORD_RAHSIA = "USM2026"
 APP_VERSION = "v1.1.1 (Improved Caption Logic)"
@@ -26,6 +40,8 @@ def logout():
 
 
 if not st.session_state.authenticated:
+    # Letak di bahagian paling atas skrip utama
+    st.markdown("<div id='top-of-page'></div>", unsafe_allow_html=True)
     st.title("📄 Semakan Format Tesis USM")
     st.caption(f"📌 **Versi Sistem:** {APP_VERSION}")
     st.markdown("---")
@@ -190,11 +206,11 @@ VERB_KEYWORDS_REGEX = re.compile(
     r"indicates?|indicating|indicated|"
     r"displays?|displaying|displayed|"
     r"describes?|describing|described|"
-    r"menunjukkan|menyenaraikan|mencatatkan|memaparkan|menggambarkan|merumuskan|membandingkan"
+    r"provides?|providing|provided|"
+    r"menunjukkan|menyenaraikan|mencatatkan|memaparkan|menggambarkan|merumuskan|membandingkan|menyediakan|memberikan"
     r")\b",
     re.IGNORECASE
 )
-
 
 def generate_pdf_report(filtered_errors, total_pages):
     pdf = FPDF()
@@ -660,6 +676,48 @@ if uploaded_file is not None:
             )
         st.success("Fail PDF telah sedia untuk dimuat turun!")
 
+    # Letak di bahagian paling bawah skrip
+
+    st.markdown("---")
+
+    # 2. Komponen Butang dengan Capaian Tepat ke Kontena Streamlit
+    components.html(
+        """
+        <div style="text-align: center; font-family: sans-serif;">
+            <button id="scrollToTopBtn" style="
+                padding: 10px 24px;
+                background-color: #ffffff;
+                color: #31333F;
+                border: 1px solid #d4d6db;
+                border-radius: 8px;
+                font-weight: 600;
+                cursor: pointer;
+                box-shadow: 0px 2px 4px rgba(0,0,0,0.05);
+                transition: all 0.2s ease;
+            ">
+                ⬆️ Kembali ke Atas
+            </button>
+        </div>
+
+        <script>
+        const btn = document.getElementById('scrollToTopBtn');
+        btn.addEventListener('click', function() {
+            // Cari kontena tatalan utama Streamlit dalam window.parent
+            const mainDoc = window.parent.document;
+            const mainContainer = mainDoc.querySelector('[data-testid="stMain"]') 
+                            || mainDoc.querySelector('.main') 
+                            || window.parent;
+            
+            mainContainer.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
+        });
+        </script>
+        """,
+        height=70
+    )
+
     if (
         st.session_state.report_pdf_bytes is not None
         and st.session_state.annotated_pdf_bytes is not None
@@ -684,3 +742,4 @@ if uploaded_file is not None:
                 color="#059669",
             )
             st.markdown(btn_html_2, unsafe_allow_html=True)
+            
