@@ -201,7 +201,7 @@ DOT_LEADER_REGEX = re.compile(r"\.{3,}\s*\d+|\b\d+\s*$", re.IGNORECASE)
 
 # Kata kunci yang menunjukkan ia adalah ayat biasa, BUKAN tajuk/caption rasmi
 VERB_KEYWORDS_REGEX = re.compile(
-    r"\b(shows|show|depicts|depict|illustrates|illustrate|presents|present|were|was|is|are|shows the|can be seen)\b",
+    r"\b(provides|provide|shows|show|depicts|depict|illustrates|illustrate|presents|present|were|was|is|are|shows the|can be seen)\b",
     re.IGNORECASE,
 )
 
@@ -560,7 +560,8 @@ if uploaded_file is not None:
                                 table_below_close = False
                                 for d in drawings:
                                     d_y0 = d["rect"][1]
-                                    if 0 < (d_y0 - y1) < 40:
+                                    # Jarak dari tajuk ke jadual ( toleransi < 50pt )
+                                    if 0 < (d_y0 - y1) < 50:
                                         table_below_close = True
                                         break
 
@@ -568,6 +569,17 @@ if uploaded_file is not None:
                                     page_errors.append(
                                         {
                                             "msg": f"Kedudukan Tajuk Jadual Salah (Mesti Di Atas Jadual): '{full_line_text[:35]}...'",
+                                            "bbox": bbox,
+                                        }
+                                    )
+
+                                # 🟢 TAMBAHAN BARU: Semak jika Tajuk Jadual Terlangkau / Terpisah Baris (Contoh: 'Table 4.2.' sahaja di satu baris)
+                                # Jika baris tersebut HANYA mengandungi nombor jadual (contoh len < 15 aksara tanpa penerangan)
+                                clean_title_text = full_line_text.strip()
+                                if re.match(r"^(Table|Jadual)\s+\d+(\.\d+)*\.?$", clean_title_text, re.IGNORECASE):
+                                    page_errors.append(
+                                        {
+                                            "msg": f"Format Tajuk Jadual Terlangkau/Terpisah Baris: '{clean_title_text}' (Sepatutnya sebaris dengan penerangan)",
                                             "bbox": bbox,
                                         }
                                     )
