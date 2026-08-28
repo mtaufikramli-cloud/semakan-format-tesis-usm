@@ -350,17 +350,19 @@ if uploaded_file is not None:
         page_errors = []
 
         # =========================================================================
-        # 📐 PENETAPAN MARGIN UNTUK PORTRAIT VS LANDSCAPE
+        # 📐 PENETAPAN MARGIN PORTRAIT VS LANDSCAPE (PEMBETULAN DIBUAT DI SINI)
         # =========================================================================
         if is_landscape:
-            # Bagi Landscape: Margin Atas ialah margin jilid (1.57"), yang lain 0.98"
-            cur_m_top = MARGIN_LEFT_PT        # 1.57 inci (Atas)
-            cur_m_bottom = rect.height - MARGIN_RIGHT_PT  # 0.98 inci (Bawah)
-            cur_m_left = MARGIN_TOP_PT         # 0.98 inci (Kiri)
-            cur_m_right = rect.width - MARGIN_BOTTOM_PT   # 0.98 inci (Kanan)
+            # Apabila muka surat Melintang (Landscape):
+            # Bahagian Atas fizikal kertas adalah bahagian Kiri asal (Margin Jilid 1.57")
+            cur_m_top = MARGIN_LEFT_PT        # 1.57 inci
+            cur_m_bottom = rect.height - MARGIN_RIGHT_PT
+            cur_m_left = MARGIN_TOP_PT
+            cur_m_right = rect.width - MARGIN_BOTTOM_PT
         else:
-            # Bagi Portrait standard
-            cur_m_top = MARGIN_TOP_PT
+            # Apabila muka surat Menegak (Portrait standard):
+            # Margin Atas mestilah tepat mengikut tetapan input (0.98")
+            cur_m_top = MARGIN_TOP_PT         # 0.98 inci (70.56 pt)
             cur_m_bottom = rect.height - MARGIN_BOTTOM_PT
             cur_m_left = MARGIN_LEFT_PT
             cur_m_right = rect.width - MARGIN_RIGHT_PT
@@ -380,18 +382,16 @@ if uploaded_file is not None:
 
             if is_valid_num:
                 if is_landscape:
-                    # Landscape USM: Nombor muka surat biasanya di bahagian atas/kiri ikut orientasi header/footer
                     if wx0 < 150 or wy0 < 120 or wy0 > (rect.height - 120):
                         has_pagenum_found = True
                         pagenum_bboxes.append((wx0, wy0, wx1, wy1))
                 else:
-                    # Portrait USM: Nombor muka surat di bahagian bawah tengah (y0 > height - 120)
                     if wy0 > (rect.height - 120):
                         has_pagenum_found = True
                         pagenum_bboxes.append((wx0, wy0, wx1, wy1))
 
         # =========================================================================
-        # 🔍 PASS 2: SEMAKAN MARGIN & TEKS (EXCLUDE KAWASAN NOMBOR MUKA SURAT)
+        # 🔍 PASS 2: SEMAKAN MARGIN & TEKS
         # =========================================================================
         for b in blocks:
             if "lines" in b:
@@ -411,19 +411,18 @@ if uploaded_file is not None:
 
                         x0, y0, x1, y1 = bbox
 
-                        # Semak adakah span ini adalah nombor muka surat yang dikesan di Pass 1
+                        # Semak adakah span ini nombor muka surat (Abaikan semakan jika YA)
                         is_this_pagenum_span = False
                         for p_box in pagenum_bboxes:
                             if abs(y0 - p_box[1]) < 15 and abs(x0 - p_box[0]) < 30:
                                 is_this_pagenum_span = True
                                 break
 
-                        # 🛑 JIKA INI NOMBOR MUKA SURAT, ABAIKAN SEMAKAN MARGIN & FONT
                         if is_this_pagenum_span:
                             continue
 
-                        # --- Semakan Margin ---
-                        if y1 > cur_m_bottom:
+                        # --- Semakan Ralat Margin (Dengan Toleransi Kecil 2 pt) ---
+                        if y1 > (cur_m_bottom + 2):
                             page_errors.append(
                                 {
                                     "msg": f"Luar Margin Bawah: '{full_line_text[:20]}...'",
@@ -431,7 +430,7 @@ if uploaded_file is not None:
                                 }
                             )
 
-                        if y0 < cur_m_top:
+                        if y0 < (cur_m_top - 2):
                             page_errors.append(
                                 {
                                     "msg": f"Luar Margin Atas: '{full_line_text[:20]}...'",
