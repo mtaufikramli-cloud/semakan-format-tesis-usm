@@ -612,16 +612,44 @@ if uploaded_file is not None:
             ]
         )
 
-        if page_num >= 2 and not has_pagenum and not is_exempted_page:
-            loc_label = (
-                "sebelah kiri" if is_landscape else "bahagian bawah tengah"
-            )
-            page_errors.append(
-                {
-                    "msg": f"Nombor muka surat tidak dikesan di {loc_label}.",
-                    "bbox": None,
-                }
-            )
+        # 🟢 4. SEMAKAN NOMBOR MUKA SURAT (DIPERBAIKI UNTUK LANDSCAPE & ROTATED TEXT)
+        if page_num >= 2 and not is_exempted_page:
+            has_pagenum_found = False
+
+            if is_landscape:
+                # Untuk Landscape: Nombor m/s berada di kawasan sebelah kiri (X < 120pt)
+                # Gunakan get_text("words") untuk kesan teks yang dirotasikan 90/270 darjah
+                words = page.get_text("words")
+                for w in words:
+                    x0, y0, x1, y1, word_text = w[0], w[1], w[2], w[3], w[4]
+                    clean_w = word_text.lower().strip(".- ()")
+
+                    # Jika berada di zon margin kiri (X < 120) DAN merupakan nombor / angka roman
+                    if x0 < 120 and (clean_w.isdigit() or clean_w in ROMAN_NUMERALS):
+                        has_pagenum_found = True
+                        break
+            else:
+                # Untuk Portrait: Nombor m/s berada di bahagian bawah (Y > height - 80)
+                words = page.get_text("words")
+                for w in words:
+                    x0, y0, x1, y1, word_text = w[0], w[1], w[2], w[3], w[4]
+                    clean_w = word_text.lower().strip(".- ()")
+
+                    if y0 > (rect.height - 80) and (clean_w.isdigit() or clean_w in ROMAN_NUMERALS):
+                        has_pagenum_found = True
+                        break
+
+            # JIKA SUNGGUH-SUNGGUH TIADA NOMBOR M/S, BARULAH KELUARKAN RALAT
+            if not has_pagenum_found:
+                loc_label = (
+                    "sebelah kiri" if is_landscape else "bahagian bawah tengah"
+                )
+                page_errors.append(
+                    {
+                        "msg": f"Nombor muka surat tidak dikesan di {loc_label}.",
+                        "bbox": None,
+                    }
+                )
 
         unique_page_errors = []
         seen_msgs = set()
