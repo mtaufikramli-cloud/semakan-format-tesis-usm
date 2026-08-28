@@ -349,39 +349,49 @@ if uploaded_file is not None:
         is_landscape = rect.width > rect.height
         page_errors = []
 
+        # =========================================================================
+        # 📐 PENETAPAN MARGIN UNTUK PORTRAIT VS LANDSCAPE
+        # =========================================================================
         if is_landscape:
-            cur_m_bottom = rect.height - MARGIN_RIGHT_PT
+            # Bagi Landscape: Margin Atas ialah margin jilid (1.57"), yang lain 0.98"
+            cur_m_top = MARGIN_LEFT_PT        # 1.57 inci (Atas)
+            cur_m_bottom = rect.height - MARGIN_RIGHT_PT  # 0.98 inci (Bawah)
+            cur_m_left = MARGIN_TOP_PT         # 0.98 inci (Kiri)
+            cur_m_right = rect.width - MARGIN_BOTTOM_PT   # 0.98 inci (Kanan)
         else:
+            # Bagi Portrait standard
+            cur_m_top = MARGIN_TOP_PT
             cur_m_bottom = rect.height - MARGIN_BOTTOM_PT
+            cur_m_left = MARGIN_LEFT_PT
+            cur_m_right = rect.width - MARGIN_RIGHT_PT
 
         # =========================================================================
-        # 1. PASANG PRAPEMROSESAN: Pengesanan Nombor Muka Surat (Footer/Header)
+        # 🔍 PASS 1: PRE-SCANNING NOMBOR MUKA SURAT (FOOTER / HEADER)
         # =========================================================================
         pagenum_bboxes = []
         has_pagenum_found = False
 
-        # Imbas semua kata dalam muka surat untuk mencari angka/roman di kawasan footer
         words = page.get_text("words")
         for w in words:
             wx0, wy0, wx1, wy1, word_str = w[0], w[1], w[2], w[3], w[4]
             clean_w = re.sub(r"[^a-zA-Z0-9]", "", word_str.lower())
 
             is_valid_num = clean_w.isdigit() or (clean_w in ROMAN_NUMERALS)
-            
+
             if is_valid_num:
                 if is_landscape:
-                    # Bagi landscape, nombor biasa di sebelah kiri (x0 < 150)
-                    if wx0 < 150:
+                    # Landscape USM: Nombor muka surat biasanya di bahagian atas/kiri ikut orientasi header/footer
+                    if wx0 < 150 or wy0 < 120 or wy0 > (rect.height - 120):
                         has_pagenum_found = True
                         pagenum_bboxes.append((wx0, wy0, wx1, wy1))
                 else:
-                    # Bagi portrait, nombor berada di bahagian bawah (y0 > height - 120)
+                    # Portrait USM: Nombor muka surat di bahagian bawah tengah (y0 > height - 120)
                     if wy0 > (rect.height - 120):
                         has_pagenum_found = True
                         pagenum_bboxes.append((wx0, wy0, wx1, wy1))
 
         # =========================================================================
-        # 2. PENGESANAN RALAT TEKS & MARGIN (Abaikan Kawasan Nombor Muka Surat)
+        # 🔍 PASS 2: SEMAKAN MARGIN & TEKS (EXCLUDE KAWASAN NOMBOR MUKA SURAT)
         # =========================================================================
         for b in blocks:
             if "lines" in b:
@@ -401,23 +411,30 @@ if uploaded_file is not None:
 
                         x0, y0, x1, y1 = bbox
 
-                        # Semak adakah span ini berada dalam kedudukan nombor muka surat yang telah dikesan
+                        # Semak adakah span ini adalah nombor muka surat yang dikesan di Pass 1
                         is_this_pagenum_span = False
                         for p_box in pagenum_bboxes:
-                            # Jika koordinat span bertindih dengan koordinat nombor muka surat
                             if abs(y0 - p_box[1]) < 15 and abs(x0 - p_box[0]) < 30:
                                 is_this_pagenum_span = True
                                 break
 
-                        # 🛑 JIKA INI NOMBOR MUKA SURAT, SKIP SEMAKAN MARGIN & FONT AKAN DATANG!
+                        # 🛑 JIKA INI NOMBOR MUKA SURAT, ABAIKAN SEMAKAN MARGIN & FONT
                         if is_this_pagenum_span:
                             continue
 
-                        # --- Semakan Margin Bawah Teks Biasa ---
+                        # --- Semakan Margin ---
                         if y1 > cur_m_bottom:
                             page_errors.append(
                                 {
                                     "msg": f"Luar Margin Bawah: '{full_line_text[:20]}...'",
+                                    "bbox": bbox,
+                                }
+                            )
+
+                        if y0 < cur_m_top:
+                            page_errors.append(
+                                {
+                                    "msg": f"Luar Margin Atas: '{full_line_text[:20]}...'",
                                     "bbox": bbox,
                                 }
                             )
@@ -522,7 +539,7 @@ if uploaded_file is not None:
                                     )
 
         # =========================================================================
-        # 3. SEMAKAN KELUARAN NOMBOR MUKA SURAT
+        # 3. SEMAKAN KEHADIRAN NOMBOR MUKA SURAT
         # =========================================================================
         is_exempted_page = any(
             k in page_text_lower
@@ -536,7 +553,7 @@ if uploaded_file is not None:
         )
 
         if page_num >= 2 and not is_exempted_page and not has_pagenum_found:
-            loc_label = "sebelah kiri" if is_landscape else "bahagian bawah tengah"
+            loc_label = "sebelah kiri/atas" if is_landscape else "bahagian bawah tengah"
             page_errors.append(
                 {
                     "msg": f"Nombor muka surat tidak dikesan di {loc_label}.",
