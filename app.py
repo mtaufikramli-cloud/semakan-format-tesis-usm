@@ -10,14 +10,12 @@ import streamlit.components.v1 as components
 # ==========================================
 # ⚙️ TETAPAN AWAL APPLIKASI STREAMLIT
 # ==========================================
-# 1. Panggilan st.set_page_config mesti dipanggil dahulu dan berdiri sendiri
 st.set_page_config(
     page_title="Semakan Format Tesis USM",
     layout="wide",
     page_icon="📄"
 )
 
-# 2. Barulah letak st.markdown untuk CSS & Anchor di bawahnya
 st.markdown("""
     <style>
         html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"] {
@@ -28,7 +26,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 PASSWORD_RAHSIA = "USM2026"
-APP_VERSION = "v1.1.1 (Improved Caption Logic)"
+APP_VERSION = "v1.1.2 (Optimized Layout & Appendix Fix)"
 
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
@@ -40,7 +38,6 @@ def logout():
 
 
 if not st.session_state.authenticated:
-    # Letak di bahagian paling atas skrip utama
     st.markdown("<div id='top-of-page'></div>", unsafe_allow_html=True)
     st.title("📄 Semakan Format Tesis USM")
     st.caption(f"📌 **Versi Sistem:** {APP_VERSION}")
@@ -81,18 +78,17 @@ with st.sidebar:
     st.markdown("---")
     st.header("⚙️ Tetapan Templat Tesis")
 
+    # Set nilai default awal supaya tidak ralat
+    default_left, default_right, default_top, default_bottom = 40.0, 25.0, 25.0, 25.0
+    default_fonts = ["Times New Roman", "TimesNewRoman", "Arial", "Calibri", "Garamond"]
+
     preset = st.selectbox(
         "Pilih Templat Universiti",
         ["USM (Universiti Sains Malaysia)", "Custom (Manual)"],
     )
 
     if preset == "USM (Universiti Sains Malaysia)":
-        default_left, default_right, default_top, default_bottom = (
-            1.57,
-            0.98,
-            0.98,
-            0.98,
-        )
+        default_left, default_right, default_top, default_bottom = 40.0, 25.0, 25.0, 25.0
         default_fonts = [
             "Times New Roman",
             "TimesNewRoman",
@@ -101,41 +97,36 @@ with st.sidebar:
             "Garamond",
         ]
     else:
-        default_left, default_right, default_top, default_bottom = (
-            1.50,
-            1.00,
-            1.00,
-            1.00,
-        )
+        default_left, default_right, default_top, default_bottom = 38.0, 25.0, 25.0, 25.0
         default_fonts = ["Times New Roman", "Arial"]
 
-    margin_left_inch = st.number_input(
-        "Margin Kiri (Inci)",
-        min_value=0.5,
-        max_value=2.0,
+    margin_left_mm = st.number_input(
+        "Margin Kiri (mm)",
+        min_value=10.0,
+        max_value=60.0,
         value=default_left,
-        step=0.01,
+        step=1.0,
     )
-    margin_right_inch = st.number_input(
-        "Margin Kanan (Inci)",
-        min_value=0.5,
-        max_value=2.0,
+    margin_right_mm = st.number_input(
+        "Margin Kanan (mm)",
+        min_value=10.0,
+        max_value=60.0,
         value=default_right,
-        step=0.01,
+        step=1.0,
     )
-    margin_top_inch = st.number_input(
-        "Margin Atas (Inci)",
-        min_value=0.5,
-        max_value=2.0,
+    margin_top_mm = st.number_input(
+        "Margin Atas (mm)",
+        min_value=10.0,
+        max_value=60.0,
         value=default_top,
-        step=0.01,
+        step=1.0,
     )
-    margin_bottom_inch = st.number_input(
-        "Margin Bawah (Inci)",
-        min_value=0.5,
-        max_value=2.0,
+    margin_bottom_mm = st.number_input(
+        "Margin Bawah (mm)",
+        min_value=10.0,
+        max_value=60.0,
         value=default_bottom,
-        step=0.01,
+        step=1.0,
     )
 
     allowed_fonts = st.multiselect(
@@ -151,14 +142,28 @@ with st.sidebar:
         default=default_fonts,
     )
 
-    abaikan_appendix = st.checkbox(
-        "Abaikan Semakan Font pada Lampiran (Appendix)",
-        value=True,
-    )
-
     semak_caption = st.checkbox(
         "Aktifkan Semakan Format Tajuk Jadual & Rajah",
         value=True,
+        help="Semak format tajuk jadual (di atas jadual) dan tajuk rajah (di bawah rajah) mengikut saiz font, jenis font, ketebalan (bold), dan susunan perkataan."
+    )
+
+    abaikan_teks_dalam_gambar = st.sidebar.checkbox(
+        "Abaikan Teks Dalam Gambar / Rajah",
+        value=True,
+        help="Abaikan ralat font untuk label atau teks yang bertindih di atas gambar/rajah."
+    )
+
+    abaikan_appendix = st.checkbox(
+        "Abaikan Semakan Font pada Lampiran (Appendix)",
+        value=True,
+        help="Abaikan semakan jenis dan saiz font untuk semua muka surat di dalam bahagian Lampiran (Appendices)."
+    )
+
+    abaikan_pagenum_appendix = st.sidebar.checkbox(
+        "Abaikan Semakan No. M/S di Lampiran (Appendices)",
+        value=True,
+        help="Abaikan semakan kehadiran dan kedudukan nombor muka surat bermula dari tajuk Lampiran utama."
     )
 
 MATH_SYMBOL_FONTS = [
@@ -172,16 +177,21 @@ MATH_SYMBOL_FONTS = [
     "segoeui-symbol",
 ]
 
-# Tukar margin inci kepada points (1 inci = 72 points) dengan toleransi kecerdasan sistem
-MARGIN_LEFT_PT = margin_left_inch * 72
-MARGIN_RIGHT_PT = margin_right_inch * 72
-MARGIN_TOP_PT = margin_top_inch * 72
-MARGIN_BOTTOM_PT = margin_bottom_inch * 72
+MM_TO_PT = 72 / 25.4  # Nisbah 1 mm ke pt (~2.83465)
 
-ROMAN_NUMERALS = [
-    "i", "ii", "iii", "iv", "v", "vi", "vii", "viii", "ix", "x",
-    "xi", "xii", "xiii", "xiv", "xv", "xvi", "xvii", "xviii", "xix", "xx"
-]
+MARGIN_LEFT_PT = margin_left_mm * MM_TO_PT
+MARGIN_RIGHT_PT = margin_right_mm * MM_TO_PT
+MARGIN_TOP_PT = margin_top_mm * MM_TO_PT
+MARGIN_BOTTOM_PT = margin_bottom_mm * MM_TO_PT
+
+def is_roman_numeral(val_str):
+    """Fungsi menyemak secara dinamik sama ada perkataan ialah nombor Roman valid (i hingga c / 100+)"""
+    val_str = val_str.lower().strip()
+    if not val_str:
+        return False
+    # Pattern Regex khas untuk mengesahkan susunan nombor Roman yang sah (i, ii, iv, ix, xiv, xxviii, dsb)
+    roman_pattern = r"^M{0,4}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})$"
+    return bool(re.match(roman_pattern, val_str, re.IGNORECASE))
 
 TABLE_PREFIX_REGEX = re.compile(
     r"^\s*(Table|Jadual)\s+\d+(\.\d+)*", re.IGNORECASE
@@ -193,7 +203,7 @@ IN_TEXT_CITATION_REGEX = re.compile(
     r"^\s*(Figure|Rajah|Table|Jadual)\s+\d+(\.\d+)*\.\s", re.IGNORECASE
 )
 DOT_LEADER_REGEX = re.compile(r"\.{3,}\s*\d+|\b\d+\s*$", re.IGNORECASE)
-# Perkataan yang menandakan baris tersebut ialah ayat teks biasa (bukan tajuk jadual/rajah)
+
 VERB_KEYWORDS_REGEX = re.compile(
     r"\b("
     r"shows?|showing|showed|"
@@ -338,11 +348,10 @@ if uploaded_file is not None:
         st.session_state.annotated_pdf_bytes = None
         st.rerun()
 
-    st.subheader("🔍 Mod Semakan & Pratonton Visual")
-
     detected_issues = []
     all_pages_errors_list = []
     is_previous_list_page = False
+    in_appendix_section = False
 
     for page_num in range(len(doc)):
         page = doc[page_num]
@@ -378,27 +387,18 @@ if uploaded_file is not None:
         is_landscape = rect.width > rect.height
         page_errors = []
 
-        # =========================================================================
-        # 📐 PENETAPAN MARGIN PORTRAIT VS LANDSCAPE (PEMBETULAN DIBUAT DI SINI)
-        # =========================================================================
         if is_landscape:
-            # Apabila muka surat Melintang (Landscape):
-            # Bahagian Atas fizikal kertas adalah bahagian Kiri asal (Margin Jilid 1.57")
-            cur_m_top = MARGIN_LEFT_PT        # 1.57 inci
+            cur_m_top = MARGIN_LEFT_PT
             cur_m_bottom = rect.height - MARGIN_RIGHT_PT
             cur_m_left = MARGIN_TOP_PT
             cur_m_right = rect.width - MARGIN_BOTTOM_PT
         else:
-            # Apabila muka surat Menegak (Portrait standard):
-            # Margin Atas mestilah tepat mengikut tetapan input (0.98")
-            cur_m_top = MARGIN_TOP_PT         # 0.98 inci (70.56 pt)
+            cur_m_top = MARGIN_TOP_PT
             cur_m_bottom = rect.height - MARGIN_BOTTOM_PT
             cur_m_left = MARGIN_LEFT_PT
             cur_m_right = rect.width - MARGIN_RIGHT_PT
 
-        # =========================================================================
-        # 🔍 PASS 1: PRE-SCANNING NOMBOR MUKA SURAT (FOOTER / HEADER)
-        # =========================================================================
+        # PASS 1: PRE-SCANNING NOMBOR MUKA SURAT
         pagenum_bboxes = []
         has_pagenum_found = False
 
@@ -407,7 +407,7 @@ if uploaded_file is not None:
             wx0, wy0, wx1, wy1, word_str = w[0], w[1], w[2], w[3], w[4]
             clean_w = re.sub(r"[^a-zA-Z0-9]", "", word_str.lower())
 
-            is_valid_num = clean_w.isdigit() or (clean_w in ROMAN_NUMERALS)
+            is_valid_num = clean_w.isdigit() or is_roman_numeral(clean_w)
 
             if is_valid_num:
                 if is_landscape:
@@ -419,9 +419,7 @@ if uploaded_file is not None:
                         has_pagenum_found = True
                         pagenum_bboxes.append((wx0, wy0, wx1, wy1))
 
-        # =========================================================================
-        # 🔍 PASS 2: SEMAKAN MARGIN & TEKS
-        # =========================================================================
+        # PASS 2: SEMAKAN MARGIN & TEKS
         for b in blocks:
             if "lines" in b:
                 for line in b["lines"]:
@@ -440,7 +438,6 @@ if uploaded_file is not None:
 
                         x0, y0, x1, y1 = bbox
 
-                        # Semak adakah span ini nombor muka surat (Abaikan semakan jika YA)
                         is_this_pagenum_span = False
                         for p_box in pagenum_bboxes:
                             if abs(y0 - p_box[1]) < 15 and abs(x0 - p_box[0]) < 30:
@@ -450,7 +447,7 @@ if uploaded_file is not None:
                         if is_this_pagenum_span:
                             continue
 
-                        # --- Semakan Ralat Margin (Dengan Toleransi Kecil 2 pt) ---
+                        # Semakan Ralat Margin
                         if y1 > (cur_m_bottom + 2):
                             page_errors.append(
                                 {
@@ -467,14 +464,28 @@ if uploaded_file is not None:
                                 }
                             )
 
-                        # --- Semakan Font ---
-                        if not (abaikan_appendix and is_appendix_page):
+                        # Semakan Jenis & Saiz Font
+                        skip_font_check = in_appendix_section or (abaikan_appendix and is_appendix_page)
+
+                        if not skip_font_check:
                             font_name_clean = font_name.lower().replace(" ", "")
                             is_math_font = any(
                                 mf in font_name_clean for mf in MATH_SYMBOL_FONTS
                             )
 
-                            if not is_math_font:
+                            is_inside_image = False
+                            if abaikan_teks_dalam_gambar and images_info:
+                                for img in images_info:
+                                    img_bbox = img["bbox"]
+                                    text_center_x = (x0 + x1) / 2
+                                    text_center_y = (y0 + y1) / 2
+                                    
+                                    if (img_bbox[0] <= text_center_x <= img_bbox[2]) and \
+                                       (img_bbox[1] <= text_center_y <= img_bbox[3]):
+                                        is_inside_image = True
+                                        break
+
+                            if not is_math_font and not is_inside_image:
                                 font_matched = any(
                                     f.lower().replace(" ", "") in font_name_clean
                                     for f in allowed_fonts
@@ -503,7 +514,7 @@ if uploaded_file is not None:
                                             }
                                         )
 
-                        # --- Semakan Tajuk Jadual / Rajah ---
+                        # Semakan Tajuk Jadual / Rajah
                         if semak_caption and not is_list_page:
                             is_dot_leader_line = bool(DOT_LEADER_REGEX.search(full_line_text))
                             is_sentence = bool(VERB_KEYWORDS_REGEX.search(full_line_text))
@@ -566,21 +577,22 @@ if uploaded_file is not None:
                                         }
                                     )
 
-        # =========================================================================
-        # 3. SEMAKAN KEHADIRAN NOMBOR MUKA SURAT
-        # =========================================================================
-        is_exempted_page = any(
-            k in page_text_lower
-            for k in [
-                "appendix",
-                "appendices",
-                "lampiran",
-                "list of publications",
-                "publication",
-            ]
+        # SEMAKAN KEHADIRAN NOMBOR MUKA SURAT
+        if not in_appendix_section:
+            lines = [line.strip().upper() for line in full_page_text.split("\n") if line.strip()]
+            for line in lines:
+                if (line.startswith("APPENDIX") or line.startswith("LAMPIRAN")) and len(line) < 60:
+                    in_appendix_section = True
+                    break
+
+        is_other_exempted = any(
+            k in page_text_lower for k in ["list of publications", "publication"]
         )
 
-        if page_num >= 2 and not is_exempted_page and not has_pagenum_found:
+        # PEMBETULAN DI SINI: Menyertakan abaikan_pagenum_appendix ke dalam syarat pengecualian
+        skip_pagenum_check = (in_appendix_section and abaikan_pagenum_appendix) or is_other_exempted
+
+        if page_num >= 2 and not skip_pagenum_check and not has_pagenum_found:
             loc_label = "sebelah kiri/atas" if is_landscape else "bahagian bawah tengah"
             page_errors.append(
                 {
@@ -598,13 +610,77 @@ if uploaded_file is not None:
 
         all_pages_errors_list.append(unique_page_errors)
 
-        tag_landscape = " [Landscape]" if is_landscape else ""
+        # Kumpul ralat aktif untuk laporan
+        for i, err in enumerate(unique_page_errors):
+            err_id = f"p{page_num+1}_{i}"
+            if err_id not in st.session_state.ignored_errors:
+                detected_issues.append({"page": page_num + 1, "msg": err["msg"]})
+
+    # =========================================================================
+    # 📄 SEKSYEN JANA & MUAT TURUN DOKUMEN (DIPINDAHKAN KE ATAS UNTUK MESRA UX)
+    # =========================================================================
+    st.markdown("---")
+    st.subheader("📄 Jana & Muat Turun Dokumen Akhir")
+
+    st.write(
+        f"Jumlah isu aktif yang disahkan untuk dilaporkan: **{len(detected_issues)} isu**"
+    )
+
+    if st.button(
+        "⚙️ Jana Dokumen PDF Akhir",
+        type="primary",
+        use_container_width=True,
+    ):
+        with st.spinner("Menjana fail PDF akhir... Sila tunggu sebentar."):
+            st.session_state.report_pdf_bytes = generate_pdf_report(
+                detected_issues, len(doc)
+            )
+            st.session_state.annotated_pdf_bytes = generate_annotated_thesis(
+                doc, all_pages_errors_list, st.session_state.ignored_errors
+            )
+        st.success("Fail PDF telah sedia untuk dimuat turun!")
+
+    if (
+        st.session_state.report_pdf_bytes is not None
+        and st.session_state.annotated_pdf_bytes is not None
+    ):
+        col_down1, col_down2 = st.columns(2)
+
+        with col_down1:
+            btn_html_1 = create_download_button_html(
+                st.session_state.report_pdf_bytes,
+                "Laporan_Semakan_Format_Tesis_USM.pdf",
+                "📥 1. Muat Turun Laporan Ringkasan (PDF)",
+                color="#2563eb",
+            )
+            st.markdown(btn_html_1, unsafe_allow_html=True)
+
+        with col_down2:
+            btn_html_2 = create_download_button_html(
+                st.session_state.annotated_pdf_bytes,
+                "Tesis_Visual_Kotak_Ralat.pdf",
+                "📥 2. Muat Turun Tesis Berkotak Visual (PDF)",
+                color="#059669",
+            )
+            st.markdown(btn_html_2, unsafe_allow_html=True)
+
+    # =========================================================================
+    # 🔍 PRATONTON VISUAL PER MUKA SURAT
+    # =========================================================================
+    st.markdown("---")
+    st.subheader("🔍 Mod Semakan & Pratonton Visual")
+
+    for page_num in range(len(doc)):
+        unique_page_errors = all_pages_errors_list[page_num]
+        is_landscape = doc[page_num].rect.width > doc[page_num].rect.height
+        
         has_active_errors = any(
             f"p{page_num+1}_{i}" not in st.session_state.ignored_errors
             for i in range(len(unique_page_errors))
         )
 
         status_icon = "⚠️ Ada Isu" if has_active_errors else "✅ Baik / Disemak"
+        tag_landscape = " [Landscape]" if is_landscape else ""
 
         with st.expander(
             f"Muka Surat {page_num + 1}{tag_landscape} - ({status_icon})"
@@ -641,11 +717,6 @@ if uploaded_file is not None:
                         err_id = f"p{page_num+1}_{i}"
                         is_ignored = err_id in st.session_state.ignored_errors
 
-                        if not is_ignored:
-                            detected_issues.append(
-                                {"page": page_num + 1, "msg": err["msg"]}
-                            )
-
                         st.checkbox(
                             f"Abaikan (Bypass): {err['msg']}",
                             key=f"cb_{err_id}",
@@ -654,33 +725,8 @@ if uploaded_file is not None:
                             args=(err_id,),
                         )
 
-    # ==================== SEKSYEN PENJANAAN & MUAT TURUN PDF ====================
+    # ==================== BUTANG KEMBALI KE ATAS ====================
     st.markdown("---")
-    st.subheader("📄 Muat Turun Dokumen Akhir")
-
-    st.write(
-        f"Jumlah isu aktif yang disahkan untuk dilaporkan: **{len(detected_issues)} isu**"
-    )
-
-    if st.button(
-        "⚙️ Jana Dokumen PDF Akhir",
-        type="primary",
-        use_container_width=True,
-    ):
-        with st.spinner("Menjana fail PDF akhir... Sila tunggu sebentar."):
-            st.session_state.report_pdf_bytes = generate_pdf_report(
-                detected_issues, len(doc)
-            )
-            st.session_state.annotated_pdf_bytes = generate_annotated_thesis(
-                doc, all_pages_errors_list, st.session_state.ignored_errors
-            )
-        st.success("Fail PDF telah sedia untuk dimuat turun!")
-
-    # Letak di bahagian paling bawah skrip
-
-    st.markdown("---")
-
-    # 2. Komponen Butang dengan Capaian Tepat ke Kontena Streamlit
     components.html(
         """
         <div style="text-align: center; font-family: sans-serif;">
@@ -702,11 +748,10 @@ if uploaded_file is not None:
         <script>
         const btn = document.getElementById('scrollToTopBtn');
         btn.addEventListener('click', function() {
-            // Cari kontena tatalan utama Streamlit dalam window.parent
             const mainDoc = window.parent.document;
             const mainContainer = mainDoc.querySelector('[data-testid="stMain"]') 
-                            || mainDoc.querySelector('.main') 
-                            || window.parent;
+                                || mainDoc.querySelector('.main') 
+                                || window.parent;
             
             mainContainer.scrollTo({
                 top: 0,
@@ -717,29 +762,3 @@ if uploaded_file is not None:
         """,
         height=70
     )
-
-    if (
-        st.session_state.report_pdf_bytes is not None
-        and st.session_state.annotated_pdf_bytes is not None
-    ):
-        st.markdown("---")
-        col_down1, col_down2 = st.columns(2)
-
-        with col_down1:
-            btn_html_1 = create_download_button_html(
-                st.session_state.report_pdf_bytes,
-                "Laporan_Semakan_Format_Tesis_USM.pdf",
-                "📥 1. Muat Turun Laporan Ringkasan (PDF)",
-                color="#2563eb",
-            )
-            st.markdown(btn_html_1, unsafe_allow_html=True)
-
-        with col_down2:
-            btn_html_2 = create_download_button_html(
-                st.session_state.annotated_pdf_bytes,
-                "Tesis_Visual_Kotak_Ralat.pdf",
-                "📥 2. Muat Turun Tesis Berkotak Visual (PDF)",
-                color="#059669",
-            )
-            st.markdown(btn_html_2, unsafe_allow_html=True)
-            
