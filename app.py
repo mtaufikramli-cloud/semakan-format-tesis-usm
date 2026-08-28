@@ -467,35 +467,23 @@ if uploaded_file is not None:
                         if is_pagenum_candidate:
                             continue
 
-                        # 1. SEMAKAN MARGIN
-                        if x0 < cur_m_left:
-                            page_errors.append(
-                                {
-                                    "msg": f"Luar Margin Kiri: '{text[:25]}...'",
-                                    "bbox": bbox,
-                                }
-                            )
-                        elif y0 < cur_m_top:
-                            page_errors.append(
-                                {
-                                    "msg": f"Luar Margin Atas: '{text[:25]}...'",
-                                    "bbox": bbox,
-                                }
-                            )
-                        elif (rect.width - x1) < cur_m_right:
-                            page_errors.append(
-                                {
-                                    "msg": f"Luar Margin Kanan: '{text[:25]}...'",
-                                    "bbox": bbox,
-                                }
-                            )
-                        elif (rect.height - y1) < cur_m_bottom:
-                            page_errors.append(
-                                {
-                                    "msg": f"Luar Margin Bawah: '{text[:25]}...'",
-                                    "bbox": bbox,
-                                }
-                            )
+                        # 🟢 1. SEMAKAN MARGIN (DIKEMASKINI & SELAMAT NAMEERROR)
+                        x0, y0, x1, y1 = bbox  # Ambil koordinat y1 dengan betul dari bbox
+
+                        clean_text = full_line_text.strip().lower()
+                        is_pg_num = clean_text.isdigit() or clean_text in ROMAN_NUMERALS
+
+                        # Jika teks berada di zon bawah DAN ia adalah nombor m/s, abaikan semakan margin bawah
+                        if is_pg_num and y0 > (rect.height - 100):
+                            pass
+                        else:
+                            if y1 > margin_bottom_px:
+                                page_errors.append(
+                                    {
+                                        "msg": f"Luar Margin Bawah: '{full_line_text[:20]}...'",
+                                        "bbox": bbox,
+                                    }
+                                )
 
                         # 🟢 KEMASKINI: Abaikan semakan margin bawah JIKA ia adalah nombor muka surat
                         clean_text = full_line_text.strip().lower()
