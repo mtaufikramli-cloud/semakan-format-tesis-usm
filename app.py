@@ -365,7 +365,6 @@ if uploaded_file is not None:
         for b in blocks:
             if "lines" in b:
                 for line in b["lines"]:
-                    # Gabungkan teks dalam satu baris untuk elak terpisah-pisah
                     full_line_text = "".join(
                         [s["text"] for s in line["spans"]]
                     ).strip()
@@ -476,38 +475,37 @@ if uploaded_file is not None:
                                             }
                                         )
 
-                        # 3. SEMAKAN TAJUK JADUAL & RAJAH (PENAMBAHBAIKAN LOGIK)
+                        # 3. SEMAKAN TAJUK JADUAL & RAJAH
                         if semak_caption:
-                            # Tentukan sama ada baris ini adalah perenggan biasa (mengandungi kata kerja)
                             is_sentence = bool(
                                 VERB_KEYWORDS_REGEX.search(full_line_text)
                             )
 
-                            # C) Semak Tajuk Jadual (Mesti di ATAS Jadual)
-if TABLE_PREFIX_REGEX.match(full_line_text) and not is_sentence:
-    table_below_close = False
-    
-    # Semak sama ada terdapat garisan jadual (drawings) DI BAWAH tajuk dalam jarak rapat (y-offset < 40pt)
-    for d in drawings:
-        d_y0 = d["rect"][1] # Garisan atas jadual
-        if 0 < (d_y0 - y1) < 40:
-            table_below_close = True
-            break
+                            # A) Semak Tajuk Jadual (Mesti di ATAS Jadual)
+                            if (
+                                TABLE_PREFIX_REGEX.match(full_line_text)
+                                and not is_sentence
+                            ):
+                                table_below_close = False
+                                for d in drawings:
+                                    d_y0 = d["rect"][1]
+                                    if 0 < (d_y0 - y1) < 40:
+                                        table_below_close = True
+                                        break
 
-    # Ralat HANYA dikeluarkan jika TIADA jadual di bawah tajuk ini
-    if not table_below_close:
-        page_errors.append({
-            "msg": f"Kedudukan Tajuk Jadual Salah (Mesti Di Atas Jadual): '{full_line_text[:35]}...'",
-            "bbox": bbox
-        })
+                                if not table_below_close:
+                                    page_errors.append(
+                                        {
+                                            "msg": f"Kedudukan Tajuk Jadual Salah (Mesti Di Atas Jadual): '{full_line_text[:35]}...'",
+                                            "bbox": bbox,
+                                        }
+                                    )
 
                             # B) Semak Tajuk Rajah (Mesti di BAWAH Rajah)
                             elif (
                                 FIGURE_PREFIX_REGEX.match(full_line_text)
                                 and not is_sentence
                             ):
-                                # Sahkan jika imej berada DI BAWAH tajuk ini secara rapat (jarak < 30 pt)
-                                # DAN pastikan TIADA imej di ATAS tajuk (yang rapat)
                                 image_above_close = False
                                 image_below_close = False
 
@@ -515,15 +513,12 @@ if TABLE_PREFIX_REGEX.match(full_line_text) and not is_sentence:
                                     img_y0 = img["bbox"][1]
                                     img_y1 = img["bbox"][3]
 
-                                    # Imej di atas tajuk (jarak rapat < 50pt)
                                     if 0 < (y0 - img_y1) < 50:
                                         image_above_close = True
 
-                                    # Imej di bawah tajuk (jarak rapat < 30pt)
                                     if 0 < (img_y0 - y1) < 30:
                                         image_below_close = True
 
-                                # Ralat berlaku HANYA JIKA tajuk di atas imej DAN tiada imej di atasnya
                                 if image_below_close and not image_above_close:
                                     page_errors.append(
                                         {
