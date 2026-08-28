@@ -497,6 +497,20 @@ if uploaded_file is not None:
                                 }
                             )
 
+                        # 🟢 KEMASKINI: Abaikan semakan margin bawah JIKA ia adalah nombor muka surat
+                        clean_text = full_line_text.strip().lower()
+                        is_pg_num = clean_text.isdigit() or clean_text in ROMAN_NUMERALS
+                        
+                        # Jika teks berada di zon bawah DAN ia adalah nombor m/s, JANGAN anggap ralat margin
+                        if is_pg_num and y0 > (rect.height - 100):
+                            pass  # Serahkan kepada semakan nombor muka surat
+                        else:
+                            if y1 > margin_bottom_px:
+                                page_errors.append({
+                                    "msg": f"Luar Margin Bawah: '{full_line_text[:20]}...'",
+                                    "bbox": bbox
+                                })
+
                         # 2. SEMAKAN FONT & SAIZ
                         if not (abaikan_appendix and is_appendix_page):
                             font_name_clean = font_name.lower().replace(
@@ -643,11 +657,12 @@ if uploaded_file is not None:
             else:
                 # Untuk Portrait: Nombor m/s berada di bahagian bawah (Y > height - 80)
                 words = page.get_text("words")
+                # 🟢 LUASKAN ZON CARIAN ( height - 100 )
                 for w in words:
                     x0, y0, x1, y1, word_text = w[0], w[1], w[2], w[3], w[4]
                     clean_w = word_text.lower().strip(".- ()")
 
-                    if y0 > (rect.height - 80) and (clean_w.isdigit() or clean_w in ROMAN_NUMERALS):
+                    if y0 > (rect.height - 100) and (clean_w.isdigit() or clean_w in ROMAN_NUMERALS):
                         has_pagenum_found = True
                         break
 
