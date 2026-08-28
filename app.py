@@ -191,6 +191,9 @@ FIGURE_PREFIX_REGEX = re.compile(
     r"^\s*(Figure|Rajah)\s+\d+(\.\d+)*", re.IGNORECASE
 )
 
+# 🟢 TAMBAHAN BARU: Pengesan baris yang mengandungi titik-titik sambungan muka surat (dot leaders)
+DOT_LEADER_REGEX = re.compile(r"\.{3,}\s*\d+|\b\d+\s*$", re.IGNORECASE)
+
 # Kata kunci yang menunjukkan ia adalah ayat biasa, BUKAN tajuk/caption rasmi
 VERB_KEYWORDS_REGEX = re.compile(
     r"\b(shows|show|depicts|depict|illustrates|illustrate|presents|present|were|was|is|are|shows the|can be seen)\b",
@@ -330,6 +333,7 @@ if uploaded_file is not None:
     all_pages_errors_list = []
 
 # 🟢 TAMBAHAN: Pembolehubah untuk kesan sambungan muka surat senarai
+# 🟢 Penjejak muka surat senarai
     is_previous_list_page = False
 
     for page_num in range(len(doc)):
@@ -347,8 +351,8 @@ if uploaded_file is not None:
             k in page_text_lower
             for k in ["appendix", "appendices", "lampiran"]
         )
-        
-        # 1. Semak jika ada tajuk rasmi muka surat senarai
+
+        # 1. Semak tajuk rasmi muka surat senarai
         has_list_header = any(
             k in page_text_lower
             for k in [
@@ -361,13 +365,11 @@ if uploaded_file is not None:
             ]
         )
 
-        # 2. Semak jika muka surat ini mengandungi corak entri senarai (Contoh: Table 4.11 / Figure 2.1)
-        has_list_entries = bool(
-            TABLE_PREFIX_REGEX.search(full_page_text) or FIGURE_PREFIX_REGEX.search(full_page_text)
-        )
+        # 2. Semak jika muka surat mengandungi garisan titik-titik kandungan (dot leaders)
+        has_dot_leaders = bool(DOT_LEADER_REGEX.search(full_page_text))
 
-        # 3. Muka surat dianggap Muka Surat Senarai JIKA ada tajuk rasmi ATAU (muka surat sebelah ialah senarai DAN ada entri sambungan)
-        is_list_page = has_list_header or (is_previous_list_page and has_list_entries)
+        # 3. Muka surat dianggap muka surat senarai jika ada tajuk rasmi ATAU (muka surat sebelah ialah senarai DAN ada dot leaders/entri)
+        is_list_page = has_list_header or (is_previous_list_page and has_dot_leaders)
 
         # Simpan status untuk rujukan muka surat seterusnya
         is_previous_list_page = is_list_page
@@ -531,15 +533,20 @@ if uploaded_file is not None:
                                         )
 
                         # 3. SEMAKAN TAJUK JADUAL & RAJAH (DIKEMASKINI: ABAIKAN MUKA SURAT SENARAI)
+                        # 3. SEMAKAN TAJUK JADUAL & RAJAH
                         if semak_caption and not is_list_page:
+                            # 🟢 JIKA BARIS INI ADA TITIK-TITIK SENARAI (DOT LEADERS), ABAIKAN
+                            is_dot_leader_line = bool(DOT_LEADER_REGEX.search(full_line_text))
+
                             is_sentence = bool(
                                 VERB_KEYWORDS_REGEX.search(full_line_text)
                             )
 
                             # A) Semak Tajuk Jadual (Mesti di ATAS Jadual)
                             if (
-                                TABLE_PREFIX_REGEX.match(full_line_text)
+                                TABLE_PREFIX_REGEX.search(full_line_text)
                                 and not is_sentence
+                                and not is_dot_leader_line
                             ):
                                 table_below_close = False
                                 for d in drawings:
@@ -558,8 +565,9 @@ if uploaded_file is not None:
 
                             # B) Semak Tajuk Rajah (Mesti di BAWAH Rajah)
                             elif (
-                                FIGURE_PREFIX_REGEX.match(full_line_text)
+                                FIGURE_PREFIX_REGEX.search(full_line_text)
                                 and not is_sentence
+                                and not is_dot_leader_line
                             ):
                                 image_above_close = False
                                 image_below_close = False
