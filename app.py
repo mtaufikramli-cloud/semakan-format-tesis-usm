@@ -343,6 +343,18 @@ if uploaded_file is not None:
             for k in ["appendix", "appendices", "lampiran"]
         )
 
+        is_list_page = any(
+            k in page_text_lower
+            for k in [
+                "list of tables",
+                "list of figures",
+                "senarai jadual",
+                "senarai rajah",
+                "table of contents",
+                "kandungan",
+            ]
+        )
+
         is_landscape = rect.width > rect.height
         page_errors = []
         has_pagenum = False
@@ -475,8 +487,8 @@ if uploaded_file is not None:
                                             }
                                         )
 
-                        # 3. SEMAKAN TAJUK JADUAL & RAJAH
-                        if semak_caption:
+                        # 3. SEMAKAN TAJUK JADUAL & RAJAH (DIKEMASKINI: ABAIKAN MUKA SURAT SENARAI)
+                        if semak_caption and not is_list_page:
                             is_sentence = bool(
                                 VERB_KEYWORDS_REGEX.search(full_line_text)
                             )
