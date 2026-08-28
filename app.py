@@ -535,16 +535,15 @@ if uploaded_file is not None:
                         # 3. SEMAKAN TAJUK JADUAL & RAJAH (DIKEMASKINI: ABAIKAN MUKA SURAT SENARAI)
                         # 3. SEMAKAN TAJUK JADUAL & RAJAH
                         if semak_caption and not is_list_page:
-                            # 🟢 JIKA BARIS INI ADA TITIK-TITIK SENARAI (DOT LEADERS), ABAIKAN
                             is_dot_leader_line = bool(DOT_LEADER_REGEX.search(full_line_text))
 
                             is_sentence = bool(
                                 VERB_KEYWORDS_REGEX.search(full_line_text)
                             )
 
-                            # A) Semak Tajuk Jadual (Mesti di ATAS Jadual)
+                            # A) Semak Tajuk Jadual (Mesti di permulaan baris & di ATAS Jadual)
                             if (
-                                TABLE_PREFIX_REGEX.search(full_line_text)
+                                TABLE_PREFIX_REGEX.match(full_line_text)
                                 and not is_sentence
                                 and not is_dot_leader_line
                             ):
@@ -563,9 +562,9 @@ if uploaded_file is not None:
                                         }
                                     )
 
-                            # B) Semak Tajuk Rajah (Mesti di BAWAH Rajah)
+                            # B) Semak Tajuk Rajah (Mesti di permulaan baris & di BAWAH Rajah)
                             elif (
-                                FIGURE_PREFIX_REGEX.search(full_line_text)
+                                FIGURE_PREFIX_REGEX.match(full_line_text)
                                 and not is_sentence
                                 and not is_dot_leader_line
                             ):
