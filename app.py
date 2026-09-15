@@ -6,7 +6,66 @@ from PIL import Image
 import pymupdf as fitz
 import streamlit as st
 import streamlit.components.v1 as components
+from PIL import Image, ImageDraw
 
+def draw_dashed_line(draw, p1, p2, color, width=1, dash_len=8, space_len=5):
+    """Fungsi pembantu melukis garisan putus-putus"""
+    x1, y1 = p1
+    x2, y2 = p2
+    if y1 == y2:  # Garisan Melintang (Horizontal)
+        x = x1
+        while x < x2:
+            draw.line([(x, y1), (min(x + dash_len, x2), y1)], fill=color, width=width)
+            x += dash_len + space_len
+    elif x1 == x2:  # Garisan Menegak (Vertical)
+        y = y1
+        while y < y2:
+            draw.line([(x1, y), (x1, min(y + dash_len, y2))], fill=color, width=width)
+            y += dash_len + space_len
+
+def add_margin_overlay(doc_page, dpi=120, is_landscape=False):
+    # 1. Hasilkan imej asal & tukar ke mod RGBA
+    pix = doc_page.get_pixmap(dpi=dpi)
+    base_img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples).convert("RGBA")
+    
+    # 2. Hasilkan lapisan lutsinar (Overlay Layer)
+    overlay = Image.new("RGBA", base_img.size, (255, 255, 255, 0))
+    draw = ImageDraw.Draw(overlay)
+    
+    # 3. Warna Merah Lutsinar (Alpha=80 untuk bayang-bayang)
+    red_transparent = (255, 0, 0, 80) 
+    
+    # Nisbah mm ke piksel
+    px_per_mm = 2.83465 * (dpi / 72.0)
+    w_px, h_px = base_img.size
+    
+    # 📌 PENETAPAN MARGIN TEPAT PIAWAIAN USM:
+    # Portrait : Kiri = 40mm (Jilid), Atas/Bawah/Kanan = 25mm
+    # Landscape: Atas = 40mm (Jilid), Kiri/Bawah/Kanan = 25mm
+    if is_landscape:
+        m_top = 40
+        m_left = 25   # 👈 Dibaiki: 25mm untuk Landscape
+    else:
+        m_top = 25
+        m_left = 40   # 👈 40mm khas jilid sebelah kiri Portrait
+        
+    m_bottom = 25
+    m_right = 25
+    
+    top_y = m_top * px_per_mm
+    bottom_y = h_px - (m_bottom * px_per_mm)
+    left_x = m_left * px_per_mm
+    right_x = w_px - (m_right * px_per_mm)
+    
+    # 4. Lukis 4 Garisan Margin Putus-putus
+    draw_dashed_line(draw, (0, top_y), (w_px, top_y), color=red_transparent, width=2)       # Top
+    draw_dashed_line(draw, (0, bottom_y), (w_px, bottom_y), color=red_transparent, width=2) # Bottom
+    draw_dashed_line(draw, (left_x, 0), (left_x, h_px), color=red_transparent, width=2)     # Left
+    draw_dashed_line(draw, (right_x, 0), (right_x, h_px), color=red_transparent, width=2)   # Right
+    
+    # 5. Gabungkan imej asal dengan lapisan garisan bayang-bayang
+    combined = Image.alpha_composite(base_img, overlay)
+    return combined.convert("RGB")
 # ==========================================
 # ⚙️ TETAPAN AWAL APLIKASI STREAMLIT
 # ==========================================
@@ -137,7 +196,7 @@ with st.sidebar:
             "Garamond",
         ]
     else:
-        default_left, default_right, default_top, default_bottom = 38.0, 25.0, 25.0, 25.0
+        default_left, default_right, default_top, default_bottom = 40.0, 25.0, 25.0, 25.0
         default_fonts = ["Times New Roman", "Arial"]
 
     margin_left_mm = st.number_input(
@@ -267,7 +326,6 @@ def generate_pdf_report(filtered_errors, total_pages):
 
     return bytes(pdf.output())
 
-
 def generate_annotated_thesis(doc_input, all_pages_errors, ignored_set):
     # Optimasi ingatan menggunakan tobytes()
     annotated_doc = fitz.open(stream=doc_input.tobytes(), filetype="pdf")
@@ -306,12 +364,35 @@ def create_download_button_html(file_bytes, filename, button_text, color="#2563e
     </a>
     """
 
-
 st.title("📄 Sistem Semakan Format Tesis (USM Standard)")
 uploaded_file = st.file_uploader("Muat Naik Fail PDF Tesis", type=["pdf"])
 
 if uploaded_file is not None:
-    doc = fitz.open(stream=uploaded_file.read(), filetype="pdf")
+    # 📌 TUKAR: Gunakan .getvalue() bukannya .read()
+    # .getvalue() mengekalkan data PDF walaupun Streamlit di-rerun berulang kali
+    pdf_bytes = uploaded_file.getvalue()
+    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+
+    # 📌 SEMAKAN 1: Buka PDF jika dikunci dengan Kata Laluan (Password)
+    if doc.is_encrypted:
+        password = st.text_input("🔒 PDF ini dilindungi kata laluan. Sila masukkan password:", type="password")
+        
+        if password:
+            # Cuba buka PDF guna password yang dimasukkan
+            if doc.authenticate(password):
+                st.success("🔓 Kata laluan betul! Memproses tesis...")
+            else:
+                st.error("❌ Kata laluan salah. Sila masukkan kata laluan yang betul.")
+                st.stop()
+        else:
+            st.warning("⚠️ Sila masukkan kata laluan di atas untuk meneruskan semakan.")
+            st.stop()
+
+    # 📌 SEMAKAN 2: Pastikan dokumen mempunyai muka surat
+    if len(doc) == 0:
+        st.error("❌ Fail PDF ini kosong atau rosak.")
+        st.stop()
+
     st.success(f"Fail berjaya dimuat naik! Jumlah muka surat: {len(doc)}")
 
     if "ignored_errors" not in st.session_state:
@@ -367,40 +448,223 @@ if uploaded_file is not None:
         is_list_page = has_list_header or (is_previous_list_page and has_dot_leaders)
         is_previous_list_page = is_list_page
 
-        is_landscape = rect.width > rect.height
+        # 📌 1. SEMAK ORIENTASI SEBENAR (AMBIL KIRA ROTASI INTERNAL PDF)
+        if page.rotation in (90, 270):
+            is_landscape = rect.height > rect.width
+        else:
+            is_landscape = rect.width > rect.height
+
         page_errors = []
 
-        if is_landscape:
-            cur_m_top = MARGIN_LEFT_PT
-            cur_m_bottom = rect.height - MARGIN_RIGHT_PT
-            cur_m_left = MARGIN_TOP_PT
-            cur_m_right = rect.width - MARGIN_BOTTOM_PT
-        else:
-            cur_m_top = MARGIN_TOP_PT
-            cur_m_bottom = rect.height - MARGIN_BOTTOM_PT
-            cur_m_left = MARGIN_LEFT_PT
-            cur_m_right = rect.width - MARGIN_RIGHT_PT
+        # -----------------------------------------------------------------
+        # 📌 DEFINISI MARGIN USM SEBENAR (1mm ≈ 2.83465 pt)
+        # -----------------------------------------------------------------
+        MARGIN_25MM_PT = 25 * 2.83465  # ~70.87 pt
+        MARGIN_40MM_PT = 40 * 2.83465  # ~113.39 pt
 
-        # PASS 1: PRE-SCANNING NOMBOR MUKA SURAT
-        pagenum_bboxes = []
+        if is_landscape:
+            # LANDSCAPE: Top 40mm (sebab ruang jilid), Left/Right/Bottom 25mm
+            cur_m_top = MARGIN_40MM_PT
+            cur_m_bottom = rect.height - MARGIN_25MM_PT
+            cur_m_left = MARGIN_25MM_PT
+            cur_m_right = rect.width - MARGIN_25MM_PT
+            top_limit_label = "40mm"
+            limit_mm = 40
+        else:
+            # PORTRAIT: Top 25mm, Left 40mm (sebab ruang jilid), Right/Bottom 25mm
+            cur_m_top = MARGIN_25MM_PT
+            cur_m_bottom = rect.height - MARGIN_25MM_PT
+            cur_m_left = MARGIN_40MM_PT
+            cur_m_right = rect.width - MARGIN_25MM_PT
+            top_limit_label = "25mm"
+            limit_mm = 25
+
+        # -----------------------------------------------------------------
+        # PASS 1: PRE-SCANNING NOMBOR MUKA SURAT (LANDSCAPE LEFT SHIELD)
+        # -----------------------------------------------------------------
+        pagenum_rects = []
         has_pagenum_found = False
 
-        words = page.get_text("words")
-        for w in words:
-            wx0, wy0, wx1, wy1, word_str = w[0], w[1], w[2], w[3], w[4]
-            clean_w = re.sub(r"[^a-zA-Z0-9]", "", word_str.lower())
+        # Kumpul semua shape/kotak yang ada fill
+        filled_shapes = [
+            path["rect"] for path in page.get_drawings() 
+            if path.get("fill") is not None and path.get("rect")
+        ]
 
-            is_valid_num = clean_w.isdigit() or is_roman_numeral(clean_w)
+        page_dict = page.get_text("dict")
 
-            if is_valid_num:
-                if is_landscape:
-                    if wx0 < 150 or wy0 < 120 or wy0 > (rect.height - 120):
-                        has_pagenum_found = True
-                        pagenum_bboxes.append((wx0, wy0, wx1, wy1))
-                else:
-                    if wy0 > (rect.height - 120):
-                        has_pagenum_found = True
-                        pagenum_bboxes.append((wx0, wy0, wx1, wy1))
+        for b in page_dict.get("blocks", []):
+            if "lines" not in b:
+                continue
+            for line in b["lines"]:
+                for span in line.get("spans", []):
+                    span_color = span.get("color", 0)
+
+                    # Tapis teks berwarna putih
+                    if span_color == 16777215:
+                        continue 
+
+                    word_str = span.get("text", "").strip()
+                    clean_w = re.sub(r"[^a-zA-Z0-9]", "", word_str.lower())
+
+                    is_valid_num = (clean_w.isdigit() and len(clean_w) <= 3) or is_roman_numeral(clean_w)
+
+                    if is_valid_num and clean_w:
+                        s_bbox = fitz.Rect(span["bbox"])
+                        wx0, wy0, wx1, wy1 = s_bbox.x0, s_bbox.y0, s_bbox.x1, s_bbox.y1
+
+                        # 📌 1. TAPIS KOTAK PUTIH HANYA DI ZON BAWAH (TRIK HIDE NO BAWAH PELAJAR)
+                        is_at_bottom_zone = wy0 > (rect.height - 100)
+                        if is_at_bottom_zone:
+                            is_covered_by_shape = any(
+                                shape.intersects(s_bbox) or shape.contains(s_bbox) 
+                                for shape in filled_shapes
+                            )
+                            if is_covered_by_shape:
+                                continue  # Skip nombor bawah yang ditutup kotak putih!
+
+                        # 📌 2. ZON MARGIN SAH (LONGGARKAN KIRI LANDSCAPE KEPADA 110PT)
+                        left_margin_limit = 110 if is_landscape else 70
+                        is_in_margin_zone = (
+                            wx0 < left_margin_limit or 
+                            wx1 > (rect.width - 70) or 
+                            wy0 < 70 or 
+                            wy1 > (rect.height - 70)
+                        )
+
+                        if is_in_margin_zone:
+                            has_pagenum_found = True
+                            pagenum_rects.append(fitz.Rect(wx0 - 5, wy0 - 5, wx1 + 5, wy1 + 5))
+
+                            # Amaran hanya diberi jika nombor di bawah TIDAK DITUTUP kotak (memang terdedah)
+                            if is_landscape and is_at_bottom_zone:
+                                page_errors.append({
+                                    "msg": f"Kedudukan Nombor Muka Surat Salah: Nombor '{word_str}' dikesan di BAHAGIAN BAWAH halaman Landscape. Mengikut piawaian USM, nombor muka surat mestilah diletakkan di SEBELAH KIRI.",
+                                    "bbox": (wx0, wy0, wx1, wy1),
+                                })
+        # -----------------------------------------------------------------
+        # 📌 SEMAKAN TAJUK BAB (PENAPIS TEKS NARATIF / FALSE POSITIVE)
+        # -----------------------------------------------------------------
+        is_toc_page = any(k in full_page_text.upper() for k in ["TABLE OF CONTENTS", "SENARAI KANDUNGAN"])
+
+        if not is_toc_page:
+            blocks = page.get_text("blocks")
+            chapter_blocks = []
+
+            for b in blocks:
+                clean_btext = " ".join(b[4].split()).strip()
+                if clean_btext:
+                    chapter_blocks.append({
+                        "text": clean_btext,
+                        "x0": b[0], "y0": b[1], "x1": b[2], "y1": b[3],
+                        "bbox": (b[0], b[1], b[2], b[3])
+                    })
+
+            for item in chapter_blocks:
+                text = item["text"]
+                
+                # 1. PERISAI MULTI-PAGE TOC (m/s iii - vi):
+                has_toc_dots = bool(re.search(r'\.{2,}', text)) or ". . ." in text
+                has_page_number_at_end = bool(re.search(r'\s+\d+$', text))
+
+                if has_toc_dots or (has_page_number_at_end and "CHAPTER" in text.upper()):
+                    continue
+
+                # 📌 2. PERISAI TEKS NARATIF (TAPIS AYAT SEPERTI "Chapter 5 showed that..."):
+                is_paragraph_sentence = text.endswith(".") or len(text.split()) > 10
+                is_not_uppercase_heading = not re.search(r'^(CHAPTER|BAB)\s+\d+', text)
+
+                # Skip jika ia adalah perenggan ayat perbincangan biasa
+                if is_paragraph_sentence or is_not_uppercase_heading:
+                    continue
+
+                # KES 1: Jika 'CHAPTER 1 INTRODUCTION' diekstrak dalam 1 baris (Mesti Uppercase & Tanpa Titik)
+                if re.search(r'^(CHAPTER|BAB)\s+(\d+|[IVXLCDM]+)\s+[A-Z0-9\s\:\-\&]{2,}$', text):
+                    page_errors.append({
+                        "msg": f"Tajuk Bab: '{text}' ditulis pada baris yang sama. 'CHAPTER' dan tajuk bab (contoh: INTRODUCTION) mestilah dipisahkan dengan ENTER (baris baharu).",
+                        "bbox": item["bbox"],
+                    })
+                    break
+
+                # KES 2: Jika 'CHAPTER 1' & 'INTRODUCTION' berasingan tapi di paras Y yang sama
+                elif re.match(r'^(CHAPTER|BAB)\s+(\d+|[IVXLCDM]+)$', text):
+                    for other_item in chapter_blocks:
+                        if item == other_item:
+                            continue
+                        
+                        same_y_level = abs(item["y0"] - other_item["y0"]) < 15
+                        is_on_right = other_item["x0"] >= item["x1"] - 10
+
+                        if same_y_level and is_on_right:
+                            clean_title_snippet = other_item["text"][:25]
+                            page_errors.append({
+                                "msg": f"Tajuk Bab: '{text}' dan '{clean_title_snippet}' berada pada baris yang sama. Sila tekan ENTER untuk meletakkan tajuk bab di bawah.",
+                                "bbox": item["bbox"],
+                            })
+                            break
+
+        # -----------------------------------------------------------------
+        # 📌 PEMURNIAN: DETEKSI MUKA SURAT TAJUK / KULIT (TITLE PAGE)
+        # -----------------------------------------------------------------
+        is_page_1_or_2 = page_num in [0, 1]
+        has_usm_keyword = "UNIVERSITI SAINS MALAYSIA" in full_page_text.upper()
+        has_fulfilment = ("THESIS SUBMITTED IN FULFILMENT" in full_page_text.upper() or 
+                          "TESIS DISERAHKAN BAGI MEMENUHI" in full_page_text.upper())
+        
+        is_title_or_cover = is_page_1_or_2 and (has_usm_keyword or has_fulfilment or page_num == 0)
+
+        # -----------------------------------------------------------------
+        # 📌 SEMAKAN MARGIN (DIBALUT: DIABAIKAN JIKA MUKA SURAT TAJUK)
+        # -----------------------------------------------------------------
+        if not is_title_or_cover:
+            top_margin_violations = []
+
+            # 1. SEMAK SEMUA BLOK TEKS
+            for block in page.get_text("blocks"):
+                bx0, by0, bx1, by1, btext = block[0], block[1], block[2], block[3], block[4]
+                block_rect = fitz.Rect(bx0, by0, bx1, by1)
+
+                is_pagenum_block = any(block_rect.intersects(p_rect) for p_rect in pagenum_rects)
+
+                clean_btext = btext.strip()
+                is_pure_num = bool(re.search(r'^\s*\d{1,4}\s*$', clean_btext)) or is_roman_numeral(re.sub(r"[^a-zA-Z0-9]", "", clean_btext.lower()))
+                in_margin_zone = (bx0 < 70 or bx1 > (rect.width - 70) or by0 < 70 or by0 > (rect.height - 70))
+
+                if is_pagenum_block or (is_pure_num and in_margin_zone) or not clean_btext:
+                    continue
+
+                # Semak jika melanggar garisan margin atas
+                if by0 < (cur_m_top - 2.0):
+                    actual_y_mm = round(by0 / 2.83465, 1)
+                    clean_snippet = " ".join(btext.split())[:35]
+                    
+                    top_margin_violations.append({
+                        "y0": by0,
+                        "msg": f"Teks melanggar Margin Atas {limit_mm}mm: '{clean_snippet}...' (Kedudukan semasa: {actual_y_mm}mm dari tepi atas)",
+                        "bbox": (bx0, by0, bx1, by1),
+                    })
+
+            # 2. SEMAK GARISAN JADUAL / VECTOR DRAWINGS
+            for path in page.get_drawings():
+                d_rect = path.get("rect")
+                if d_rect:
+                    dy0 = d_rect[1]
+                    if dy0 < (cur_m_top - 2.0) and dy0 > 30.0:
+                        top_margin_violations.append({
+                            "y0": dy0,
+                            "msg": f"Garisan Jadual/Bingkai melanggar Margin Atas 40mm ({round(dy0 / 2.83465, 1)}mm dikesan).",
+                            "bbox": d_rect,
+                        })
+
+            # 3. LAPORKAN ELEMEN PALING ATAS (Y0 PALING KECIL)
+            if top_margin_violations:
+                top_margin_violations.sort(key=lambda x: x["y0"])
+                highest_violation = top_margin_violations[0]
+                
+                page_errors.append({
+                    "msg": highest_violation["msg"],
+                    "bbox": highest_violation["bbox"],
+                })
 
         # -----------------------------------------------------------------
         # 📌 PEMURNIAN PINTAR: DETEKSI JENIS MUKA SURAT BERDASARKAN KANDUNGAN
@@ -412,8 +676,8 @@ if uploaded_file is not None:
         has_fulfilment = ("THESIS SUBMITTED IN FULFILMENT" in full_page_text.upper() or 
                           "TESIS DISERAHKAN BAGI MEMENUHI" in full_page_text.upper())
         
-        # HANYA anggap Title/Cover Page JIKA ia berada di Page 1 atau Page 2
-        is_title_or_cover = is_page_1_or_2 and (has_usm_keyword or has_fulfilment)
+        # 📌 KEMASKINI: Muka surat 1 (page_num == 0) automatik dianggap Title/Cover Page
+        is_title_or_cover = is_page_1_or_2 and (has_usm_keyword or has_fulfilment or page_num == 0)
 
         # Pengesanan Declaration Page
         declaration_kw = ["DECLARATION", "PENGAKUAN", "I HEREBY DECLARE", "SAYA DENGAN INI MENGAKU"]
@@ -452,10 +716,16 @@ if uploaded_file is not None:
             k in page_text_lower for k in ["list of publications", "publication", "penerbitan"]
         )
 
+        # 📌 DETEKSI MUKA SURAT PEMISAH UTAMA (APPENDICES / LAMPIRAN)
+        # Hanya mengecualikan pemisah utama "APPENDICES" / "LAMPIRAN", bukan "APPENDIX A"
+        full_text_upper = full_page_text.upper()
+        is_appendices_header = "APPENDICES" in full_text_upper or "LAMPIRAN" in full_text_upper
+
         skip_pagenum_check = (
             is_page_1_or_2
             or is_title_or_cover 
             or is_declaration_page
+            or is_appendices_header  # 👈 DIPAKSA SKIP UNTUK MUKA SURAT PEMISAH APPENDICES
             or (in_appendix_section and abaikan_pagenum_appendix) 
             or is_other_exempted
         )
@@ -540,8 +810,7 @@ if uploaded_file is not None:
                     "bbox": None,
                 })
 
-            # 3. Semak Indentasi Baris Pertama (First Line Indented)
-            # 🔴 PENAMBAHAN: Pastikan betul-betul muka surat Abstrak (Bukan TOC / References / URL)
+            # 3. Semak Indentasi Baris Pertama (First Line Indented) - FIX
             is_real_abstract_page = (
                 ("ABSTRAK" in full_page_text.upper() or "ABSTRACT" in full_page_text.upper())
                 and not is_toc_page 
@@ -550,30 +819,33 @@ if uploaded_file is not None:
             )
 
             if is_real_abstract_page:
-                first_text_line = None
+                abstrak_header_seen = False
+                first_para_line = None
+
                 for block in blocks:
                     if "lines" in block:
                         for line in block["lines"]:
                             line_str = "".join([s["text"] for s in line["spans"]]).strip()
                             
-                            # Abai garisan tajuk, garisan pendek, dan entri senarai
-                            if (
-                                len(line_str) > 30 
-                                and "ABSTRAK" not in line_str.upper() 
-                                and "ABSTRACT" not in line_str.upper()
-                                and not line_str.startswith("http")
-                            ):
-                                first_text_line = line
+                            # 1. Pastikan melepasi perkataan/tajuk "ABSTRAK" dahulu
+                            if line_str.upper() in ["ABSTRAK", "ABSTRACT"]:
+                                abstrak_header_seen = True
+                                continue
+                            
+                            # 2. Ambil baris perenggan HANYA SELEPAS tajuk ABSTRAK ditemui
+                            if abstrak_header_seen and len(line_str) > 30 and not line_str.startswith("http"):
+                                first_para_line = line
                                 break
-                    if first_text_line:
-                        break
+                        if first_para_line:
+                            break
 
-                if first_text_line:
-                    lx0 = first_text_line["bbox"][0]
+                if first_para_line:
+                    lx0 = first_para_line["bbox"][0]
+                    # Indent mesti sekurang-kurangnya 10pt dari margin kiri
                     if lx0 < (cur_m_left + 10.0):
                         page_errors.append({
                             "msg": f"{abstrak_type}: Baris pertama perenggan hendaklah di-indent (indented).",
-                            "bbox": first_text_line["bbox"],
+                            "bbox": first_para_line["bbox"],
                         })
 
         # =================================================================
@@ -601,49 +873,45 @@ if uploaded_file is not None:
                     })
 
         # -----------------------------------------------------------------
-        # 📌 SEMAKAN KHAS: APPENDICES / LAMPIRAN
+        # 📌 SEMAKAN KHAS: APPENDICES / LAMPIRAN (DIJAMIN KUNCI TOC)
         # -----------------------------------------------------------------
-        is_appendix_page = any(k in full_page_text.upper() for k in ["APPENDICES", "APPENDIX", "LAMPIRAN"])
+        # Kesan jika muka surat ini adalah bahagian Senarai Kandungan (TOC)
+        is_toc_context = (
+            is_toc_page 
+            or "LIST OF PUBLICATIONS" in full_page_text.upper()
+            or "TABLE OF CONTENTS" in full_page_text.upper()
+            or "SENARAI KANDUNGAN" in full_page_text.upper()
+        )
 
-        if is_appendix_page and not is_toc_page:
-            is_cover_appendix = len(full_page_text.strip().split()) <= 5 and "APPENDICES" in full_page_text.upper()
+        # Jalankan semakan HANYA jika BUKAN dalam Senarai Kandungan
+        if not is_toc_context:
+            lines = [line.strip() for line in full_page_text.split("\n") if line.strip()]
             
+            # 📌 Cari jika ada BARIS TAJUK yang bermula dengan APPENDIX / LAMPIRAN (Tajuk ringkas < 10 perkataan)
+            appendix_heading_line = None
+            for line in lines:
+                if re.match(r'^(APPENDIX|LAMPIRAN)\b', line, re.IGNORECASE) and len(line.split()) < 10:
+                    appendix_heading_line = line
+                    break
+
+            is_cover_appendix = len(full_page_text.strip().split()) <= 5 and "APPENDICES" in full_page_text.upper()
+
+            # 1. Semak Muka Surat Pembatas 'APPENDICES'
             if is_cover_appendix and has_pagenum_found:
                 page_errors.append({
                     "msg": "Appendices: Muka surat pembatas 'APPENDICES' TIDAK BOLEH diletakkan nombor muka surat.",
                     "bbox": None,
                 })
 
-            has_valid_alphabet_label = bool(re.search(r"\b(APPENDIX|LAMPIRAN)\s+[A-Z]\b", full_page_text.upper()))
-            if not is_cover_appendix and not has_valid_alphabet_label:
-                page_errors.append({
-                    "msg": "Appendices: Lampiran mestilah dilabel mengikut abjad (contoh: Appendix A, Appendix B).",
-                    "bbox": None,
-                })
-
-        # -----------------------------------------------------------------
-        # 📌 3. SYARAT PENGEQUALIAN & SEMAKAN UNTUK PAGE BIASA (PAGE 3+)
-        # -----------------------------------------------------------------
-        page_text_lower = full_page_text.lower()
-        is_other_exempted = any(
-            k in page_text_lower for k in ["list of publications", "publication", "penerbitan"]
-        )
-
-        skip_pagenum_check = (
-            is_page_1_or_2
-            or is_title_or_cover 
-            or is_declaration_page
-            or (in_appendix_section and abaikan_pagenum_appendix) 
-            or is_other_exempted
-        )
-
-        # Muka Surat 3 ke atas WAJIB ada nombor muka surat
-        if not skip_pagenum_check and not has_pagenum_found:
-            loc_label = "sebelah kiri/atas" if is_landscape else "bahagian bawah tengah"
-            page_errors.append({
-                "msg": f"Nombor muka surat tidak dikesan di {loc_label}.",
-                "bbox": None,
-            })
+            # 2. Semak Label Lampiran HANYA jika ia adalah BARIS TAJUK (Abaikan sebutan dalam perenggan)
+            elif appendix_heading_line:
+                has_valid_alphabet_label = bool(re.match(r'^(APPENDIX|LAMPIRAN)\s+[A-Z0-9]', appendix_heading_line, re.IGNORECASE))
+                
+                if not has_valid_alphabet_label:
+                    page_errors.append({
+                        "msg": "Appendices: Lampiran mestilah dilabel mengikut abjad (contoh: Appendix A, Appendix B).",
+                        "bbox": None,
+                    })
 
         # PASS 2: SEMAKAN MARGIN & TEKS
         prev_line_text = ""  # 📌 Track baris sebelumnya untuk kesan line wrap
@@ -698,13 +966,38 @@ if uploaded_file is not None:
                         is_prelim_title = clean_line_upper in TARGET_SECTION_TITLES
 
                     # -----------------------------------------------------------------
-                    # 📌 SEMAKAN TAJUK BAB / SEKSYEN
+                    # 📌 SEMAKAN TAJUK BAB / SEKSYEN (DENGAN PENAPIS OUTLINE & FORMAT)
                     # -----------------------------------------------------------------
-                    if is_chapter_title or is_prelim_title:
+                    h_x0, h_y0, h_x1, h_y1 = line["bbox"]
+
+                    # 1. Tapis ayat perenggan biasa
+                    is_narrative_sentence = (
+                        bool(VERB_KEYWORDS_REGEX.search(full_line_text))
+                        or full_line_text.strip().endswith(".")
+                        or len(full_line_text.split()) > 8
+                    )
+
+                    # 2. 📌 SYARAT BAHARU: Tapis format ringkasan outline (ada titik bertindih ':' atau bukan ALL CAPS)
+                    # Example outline: "Chapter 3: Research Methodology" -> Diabaikan
+                    has_colon_after_chapter = bool(re.search(r"^(chapter|bab)\s+\d+\s*:", full_line_text, re.IGNORECASE))
+                    is_not_uppercase = not full_line_text.strip().isupper()
+
+                    # 3. Tajuk Bab Utama SEBENAR mesti berada di bahagian atas M/S (y0 < 200 pt)
+                    is_top_of_page = h_y0 < 200.0
+
+                    # Gabungkan semua syarat penafian outline
+                    is_valid_main_chapter = (
+                        (is_chapter_title or is_prelim_title)
+                        and is_top_of_page
+                        and not is_narrative_sentence
+                        and not has_colon_after_chapter
+                        and not is_not_uppercase
+                    )
+
+                    if is_valid_main_chapter:
                         first_span = line["spans"][0]
                         heading_font = first_span["font"].lower()
                         heading_size = round(first_span["size"], 1)
-                        h_x0, h_y0, h_x1, h_y1 = line["bbox"]
 
                         is_bold = "bold" in heading_font or "black" in heading_font
                         if not is_bold:
@@ -1040,10 +1333,12 @@ if uploaded_file is not None:
             pix = doc_page.get_pixmap(dpi=120)
             img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
 
-            # Kolum Kiri: Pratonton Gambar
+            # Kolum Kiri: Pratonton Gambar (Dengan Garisan Margin Samar)
             with col_img:
+                img_with_guides = add_margin_overlay(doc_page, dpi=120, is_landscape=is_landscape)
+                
                 st.image(
-                    img,
+                    img_with_guides,
                     caption=f"Pratonton MS {page_num + 1}",
                     use_container_width=True,
                 )
@@ -1061,13 +1356,27 @@ if uploaded_file is not None:
                         page_err_ids.append(err_id)
                         is_ignored = err_id in st.session_state.ignored_errors
 
-                        st.checkbox(
-                            f"Abaikan (Bypass): {err['msg']}",
-                            key=f"cb_{err_id}",
-                            value=is_ignored,
-                            on_change=toggle_bypass,
-                            args=(err_id,),
-                        )
+                        # 🟢 SUSUN SEBELAH-MENYEBELAH (RAPAT & KEMAS)
+                        c_check, c_text = st.columns([0.25, 0.75])
+                        
+                        with c_check:
+                            st.checkbox(
+                                f"Abaikan (Bypass Isu #{i+1})",
+                                key=f"cb_{err_id}",
+                                value=is_ignored,
+                                on_change=toggle_bypass,
+                                args=(err_id,),
+                            )
+
+                        with c_text:
+                            # text_input yang read-only: Boleh select, copy, dan jarak sangat rapat
+                            st.text_input(
+                                f"Isu #{i+1}",
+                                value=err['msg'],
+                                key=f"txt_{err_id}",
+                                label_visibility="collapsed",
+                                disabled=True
+                            )
 
                     st.divider()
 
