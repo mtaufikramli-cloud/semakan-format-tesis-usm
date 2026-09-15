@@ -70,6 +70,12 @@ TEXT_I18N = {
         "ui_bypass_issue": "Abaikan (Bypass Isu #{num})",
         "ui_issue_label": "Isu #{num}",
         "ui_bypass_all_page": "☑️ **Abaikan Semua Isu Muka Surat Ini (Bypass All)**",
+        "ui_version_label": "Versi Sistem:",
+        "ui_info_btn": "ℹ️ Info",
+        "changelog_header": "📋 Log Kemaskini ({version})",
+        "v130_item1": "Sokongan Penuh Dwibahasa (i18n BM/EN): Transisi menyeluruh dari sistem teks tegar (hardcoded) ke sistem terjemahan dinamik untuk semua mesej ralat, amaran, dan antaramuka pengguna.",
+        "v130_item2": "Semakan Format Komprehensif: Menambah baik pengesanan dinamik bagi margin, saiz/font, hierarki Kandungan (TOC), Abstrak, Lampiran, dan kedudukan tajuk Jadual/Rajah.",
+        "v130_item3": "Pratonton & Bypass Interaktif: Penyesuaian label UI mengikut bahasa pilihan serta sokongan fungsi penyahaktifan isu (bypass) secara kelompok per muka surat.",
 
     },
     "EN": {
@@ -130,7 +136,12 @@ TEXT_I18N = {
         "ui_bypass_issue": "Ignore (Bypass Issue #{num})",
         "ui_issue_label": "Issue #{num}",
         "ui_bypass_all_page": "☑️ **Bypass All Issues on This Page**",
-
+        "ui_version_label": "System Version:",
+        "ui_info_btn": "ℹ️ Info",
+        "changelog_header": "📋 Changelog ({version})",
+        "v130_item1": "Full Internationalization (i18n BM/EN): Comprehensive transition from hardcoded strings to a dynamic translation repository across all error messages, warnings, and UI elements.",
+        "v130_item2": "Comprehensive Formatting Checks: Enhanced dynamic detection for margins, font sizes/types, Table of Contents (TOC) hierarchy, Abstracts, Appendices, and Table/Figure caption positions.",
+        "v130_item3": "Interactive Preview & Bypass: Language-adaptive UI labels with enhanced page-wide batch issue bypassing functionality.",
     }
 }
 
@@ -428,7 +439,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 PASSWORD_RAHSIA = "USM2026"
-APP_VERSION = "v1.2.1"
+APP_VERSION = "v1.3.0"
 
 # Papar versi dan butang info di Sidebar
 col_v1, col_v2 = st.sidebar.columns([3, 1])
@@ -440,6 +451,13 @@ with col_v2:
     with st.popover("ℹ️ Info"):
         st.markdown(f"### 📋 Log Kemaskini ({APP_VERSION})")
         st.markdown("""
+        **v1.3.0**
+        * **Sokongan Dwibahasa (BM/EN):** Semua mesej ralat, amaran, dan teks UI kini menyokong pertukaran bahasa secara dinamik.
+        * **Semakan Format Lebih Tepat:** Penambahbaikan pengesanan automatik untuk margin, saiz font, senarai kandungan (TOC), tajuk jadual, dan rajah.
+        * **Bypass Isu Pukal:** Menambah master checkbox untuk abai (bypass) semua ralat terus mengikut muka surat.
+
+        ---
+
         **v1.2.1**
         * **Garisan Margin Visual Lembut:** Melukis 4 garisan margin putus-putus merah pudar (*faint red*) pada kanvas visual tesis persis paparan *live preview*.
         * **Paparan Teks Isu Dinamik:** Membaiki isu teks ralat terpotong pada kad laporan kanan dengan pengiraan ketinggian petak secara dinamik.
@@ -449,15 +467,10 @@ with col_v2:
         ---
 
         **v1.2.0**
-        * **Penapis Kata Kerja Tajuk (*Narrative Verb Filter*):**
-          * Mengelakkan ralat palsu Tajuk Rajah/Jadual apabila ayat bermula dengan kata kerja (*shows, presents, summarizes, depicts*).
-        * **Semakan Font Kritis:**
-          * Mengetatkan pengesanan font tidak sah (contoh: Cambria / Cambria-Italic) walaupun untuk frasa/perkataan pendek.
-        * **Fungsi *Bypass All* Per Muka Surat:**
-          * Menambah *master checkbox* di bahagian bawah setiap muka surat untuk mengabaikan semua ralat serentak.
-        * **Kiraan Isu Dinamik & Pembaikan UI:**
-          * Tajuk expander memaparkan jumlah ralat aktif secara *real-time* (contoh: `⚠️ Ada Isu: 4`).
-          * Membaiki ralat duplikasi paparan muka surat.
+        * **Penapis Kata Kerja Tajuk (*Narrative Verb Filter*):** Mengelakkan ralat palsu Tajuk Rajah/Jadual apabila ayat bermula dengan kata kerja (*shows, presents, summarizes, depicts*).
+        * **Semakan Font Kritis:** Mengetatkan pengesanan font tidak sah (contoh: Cambria / Cambria-Italic) walaupun untuk frasa/perkataan pendek.
+        * **Fungsi *Bypass All* Per Muka Surat:** Menambah *master checkbox* di bahagian bawah setiap muka surat untuk mengabaikan semua ralat serentak.
+        * **Kiraan Isu Dinamik & Pembaikan UI:** Tajuk expander memaparkan jumlah ralat aktif secara *real-time* (contoh: `⚠️ Ada Isu: 4`).
         """)
 
 if "authenticated" not in st.session_state:
