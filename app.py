@@ -8,6 +8,149 @@ import streamlit as st
 import streamlit.components.v1 as components
 from PIL import Image, ImageDraw
 
+# =========================================================================
+# 🌐 KAMUS TERJEMAHAN BAHASA (I18N)
+# =========================================================================
+TEXT_I18N = {
+    "BM": {
+        "report_title": "Laporan Format: Muka Surat {page_num}",
+        "warning_header": "[AMARAN] Dikesan {count} Isu Format:",
+        "no_issue": "✅ Tiada isu format dikesan pada muka surat ini.",
+        "status_ok": "[OK] STATUS: SEMPURNA / TIADA ISU FORMAT",
+        "margin_top": "Teks melanggar Margin Atas {limit}mm: '{text}' (Kedudukan semasa: {val:.1f}mm dari tepi atas)",
+        "margin_bottom": "Teks melanggar Margin Bawah {limit}mm: '{text}' (Kedudukan semasa: {val:.1f}mm dari tepi bawah)",
+        "margin_left": "Teks melanggar Margin Kiri {limit}mm: '{text}' (Kedudukan semasa: {val:.1f}mm dari tepi kiri)",
+        "margin_right": "Teks melanggar Margin Kanan {limit}mm: '{text}' (Kedudukan semasa: {val:.1f}mm dari tepi kanan)",
+        "font_issue": "Jenis font '{font_name}' tidak dibenarkan pada teks: '{text}'",
+        "pdf_no_issues": "Tiada isu format dikesan. Tesis mematuhi piawaian!",
+        "pdf_col_page": "Muka Surat",
+        "pdf_col_details": "Butiran Isu Format",
+        "pdf_main_title": "Laporan Semakan Format Tesis",
+        "pdf_total_pages": "Jumlah Muka Surat Diperiksa: {total_pages}",
+        "landscape_page_num": "Kedudukan Nombor Muka Surat Salah: Nombor '{num}' dikesan di BAHAGIAN BAWAH halaman Landscape. Mengikut piawaian USM, nombor muka surat mestilah diletakkan di SEBELAH KIRI.",
+        "chapter_title_same_line": "Tajuk Bab: '{text}' ditulis pada baris yang sama. 'CHAPTER/BAB' dan tajuk bab (contoh: INTRODUCTION) mestilah dipisahkan dengan ENTER (baris baharu).",
+        "chapter_same_y_level": "Tajuk Bab: '{text}' dan '{snippet}' berada pada baris yang sama. Sila tekan ENTER untuk meletakkan tajuk bab di bawah.",
+        "table_line_margin_top": "Garisan Jadual/Bingkai melanggar Margin Atas {limit}mm ({val:.1f}mm dikesan).",
+        "title_page_month_year": "Muka Surat Tajuk (M/S 1-2): Bulan dan Tahun penyerahan tidak dikesan.",
+        "missing_page_num": "Nombor muka surat tidak dikesan di {location}.",
+        "loc_landscape": "sebelah kiri/atas",
+        "loc_portrait": "bahagian bawah tengah",
+        "ack_missing_ii": "Penghargaan / Acknowledgement: Muka surat ini wajib diletakkan nombor muka surat 'ii'.",
+        "ack_max_one_page": "Penghargaan / Acknowledgement: Dihadkan kepada 1 muka surat sahaja.",
+        "toc_missing_iii": "Kandungan / Table of Contents: Muka surat awal TOC wajib bermula dengan nombor muka surat 'iii'.",
+        "toc_invalid_sub": "Kandungan / Table of Contents: Sub-pembahagian tajuk mestilah menggunakan kurungan, contoh: 1.2.1(a) atau 1.2.1(a)(i).",
+        "abstract_bm_label": "ABSTRAK (BM)",
+        "abstract_en_label": "ABSTRACT (EN)",
+        "abstract_max_words": "{type}: Panjang teks melebihi had 400 perkataan ({count} perkataan dikesan).",
+        "abstract_single_para": "{type}: Teks hendaklah ditulis dalam SATU PERENGGAN sahaja.",
+        "abstract_indent": "{type}: Baris pertama perenggan hendaklah di-indent (indented).",
+        "ref_spacing_issue": "Rujukan / References: Mesti menggunakan Single-spacing dalam entri dan Double-spacing antara entri rujukan.",
+        "appendix_divider_pagenum": "Lampiran / Appendices: Muka surat pembatas 'LAMPIRAN / APPENDICES' TIDAK BOLEH diletakkan nombor muka surat.",
+        "appendix_invalid_label": "Lampiran / Appendices: Lampiran mestilah dilabel mengikut abjad (contoh: Lampiran A, Appendix B).",
+        "chapter_heading_not_bold": "Tajuk Seksyen/Bab mesti BOLD: '{text}...'",
+        "chapter_heading_not_centered": "Tajuk Seksyen/Bab mesti di TENGAH (Centered): '{text}...'",
+        "chapter_heading_not_single_spaced": "Tajuk Seksyen/Bab mesti SINGLE SPACING: '{text}...'",
+        "font_size_too_small": "Saiz font terlalu kecil ({size}pt): '{text}...'",
+        "font_size_non_standard": "Saiz font tidak piawai ({size}pt): '{text}...'",
+        "table_caption_position_error": "Kedudukan Tajuk Jadual Salah / Tiada Jadual Di Bawah: '{text}...'",
+        "table_caption_split_format": "Format Tajuk Jadual Terpisah Baris: '{text}' (Perlu sebaris dengan penerangan)",
+        "figure_caption_position_error": "Kedudukan Tajuk Rajah Salah (Mesti Di Bawah Rajah): '{text}...'",
+        "title_page_pagenum_forbidden": "Title Page / Muka Surat Tajuk: Nombor muka surat TIDAK BOLEH dipaparkan.",
+        "declaration_pagenum_forbidden": "Pengakuan / Declaration: Nombor muka surat TIDAK BOLEH dipaparkan.",
+        "missing_page_num": "Nombor muka surat tidak dikesan di {location}.",
+        "loc_landscape": "sebelah kiri/atas",
+        "loc_portrait": "bahagian bawah tengah",
+        "ui_review_preview_title": "🔍 Mod Semakan & Pratonton Visual",
+        "ui_issues_found": "⚠️ Ada Isu: {count}",
+        "ui_status_ok": "✅ Baik / Disemak",
+        "ui_page_label": "Muka Surat {num}{tag} - ({status})",
+        "ui_preview_caption": "Pratonton MS {num}",
+        "ui_no_errors_page": "Muka surat ini bebas daripada ralat format.",
+        "ui_detected_issues_title": "**Senarai Isu Dikesan:**",
+        "ui_bypass_issue": "Abaikan (Bypass Isu #{num})",
+        "ui_issue_label": "Isu #{num}",
+        "ui_bypass_all_page": "☑️ **Abaikan Semua Isu Muka Surat Ini (Bypass All)**",
+
+    },
+    "EN": {
+        "report_title": "Format Report: Page {page_num}",
+        "warning_header": "[WARNING] Detected {count} Format Issue(s):",
+        "no_issue": "✅ No format issues detected on this page.",
+        "status_ok": "[OK] STATUS: PERFECT / NO FORMAT ISSUES",
+        "margin_top": "Text violates Top Margin {limit}mm: '{text}' (Current position: {val:.1f}mm from top)",
+        "margin_bottom": "Text violates Bottom Margin {limit}mm: '{text}' (Current position: {val:.1f}mm from bottom)",
+        "margin_left": "Text violates Left Margin {limit}mm: '{text}' (Current position: {val:.1f}mm from left)",
+        "margin_right": "Text violates Right Margin {limit}mm: '{text}' (Current position: {val:.1f}mm from right)",
+        "font_issue": "Font type '{font_name}' is not allowed on text: '{text}'",
+        "pdf_no_issues": "No format issues detected. Thesis complies with standards!",
+        "pdf_col_page": "Page Number",
+        "pdf_col_details": "Format Issue Details",
+        "pdf_main_title": "Thesis Format Checking Report",
+        "pdf_total_pages": "Total Pages Checked: {total_pages}",
+        "landscape_page_num": "Incorrect Page Number Position: Number '{num}' detected at the BOTTOM of a Landscape page. According to USM standards, page numbers must be placed on the LEFT side.",
+        "chapter_title_same_line": "Chapter Title: '{text}' is written on the same line. 'CHAPTER/BAB' and the chapter title (e.g., INTRODUCTION) must be separated by ENTER (new line).",
+        "chapter_same_y_level": "Chapter Title: '{text}' and '{snippet}' are on the same line. Please press ENTER to move the chapter title below.",
+        "table_line_margin_top": "Table Line/Border violates Top Margin {limit}mm ({val:.1f}mm detected).",
+        "title_page_month_year": "Title Page (Page 1-2): Month and Year of submission not detected.",
+        "missing_page_num": "Page number not detected at {location}.",
+        "loc_landscape": "top/left side",
+        "loc_portrait": "bottom center",
+        "ack_missing_ii": "Acknowledgement / Penghargaan: This page must be numbered with page number 'ii'.",
+        "ack_max_one_page": "Acknowledgement / Penghargaan: Restricted to 1 page only.",
+        "toc_missing_iii": "Table of Contents / Kandungan: The initial TOC page must start with page number 'iii'.",
+        "toc_invalid_sub": "Table of Contents / Kandungan: Subsection divisions must use parentheses, e.g., 1.2.1(a) or 1.2.1(a)(i).",
+        "abstract_bm_label": "ABSTRAK (BM)",
+        "abstract_en_label": "ABSTRACT (EN)",
+        "abstract_max_words": "{type}: Text length exceeds the 400-word limit ({count} words detected).",
+        "abstract_single_para": "{type}: Text must be written in a SINGLE PARAGRAPH only.",
+        "abstract_indent": "{type}: The first line of the paragraph must be indented.",
+        "ref_spacing_issue": "References / Rujukan: Must use Single-spacing within entries and Double-spacing between reference entries.",
+        "appendix_divider_pagenum": "Appendices / Lampiran: The 'APPENDICES' divider page MUST NOT contain a page number.",
+        "appendix_invalid_label": "Appendices / Lampiran: Appendices must be labeled alphabetically (e.g., Appendix A, Appendix B).",
+        "chapter_heading_not_bold": "Section/Chapter Heading must be BOLD: '{text}...'",
+        "chapter_heading_not_centered": "Section/Chapter Heading must be CENTERED: '{text}...'",
+        "chapter_heading_not_single_spaced": "Section/Chapter Heading must be SINGLE SPACED: '{text}...'",
+        "font_size_too_small": "Font size is too small ({size}pt): '{text}...'",
+        "font_size_non_standard": "Non-standard font size ({size}pt): '{text}...'",
+        "table_caption_position_error": "Incorrect Table Caption Position / No Table Below: '{text}...'",
+        "table_caption_split_format": "Split Table Caption Format: '{text}' (Must be on the same line as the description)",
+        "figure_caption_position_error": "Incorrect Figure Caption Position (Must Be Below Figure): '{text}...'",
+        "title_page_pagenum_forbidden": "Title Page: Page number MUST NOT be displayed.",
+        "declaration_pagenum_forbidden": "Declaration Page: Page number MUST NOT be displayed.",
+        "missing_page_num": "Page number not detected at {location}.",
+        "loc_landscape": "top/left side",
+        "loc_portrait": "bottom center",
+        "ui_review_preview_title": "🔍 Review Mode & Visual Preview",
+        "ui_issues_found": "⚠️ Issues Found: {count}",
+        "ui_status_ok": "✅ Clear / Reviewed",
+        "ui_page_label": "Page {num}{tag} - ({status})",
+        "ui_preview_caption": "Page {num} Preview",
+        "ui_no_errors_page": "This page is free from formatting errors.",
+        "ui_detected_issues_title": "**List of Detected Issues:**",
+        "ui_bypass_issue": "Ignore (Bypass Issue #{num})",
+        "ui_issue_label": "Issue #{num}",
+        "ui_bypass_all_page": "☑️ **Bypass All Issues on This Page**",
+
+    }
+}
+
+# 1. Takrifkan Fungsi Footer di Bahagian Atas app.py
+def paparkan_footer():
+    st.markdown("---")
+    st.markdown("""
+        <div style="text-align: center; color: #4b5563; font-size: 0.85rem; line-height: 1.6; background-color: #f9fafb; padding: 15px; border-radius: 8px; border: 1px solid #e5e7eb;">
+            <p style="margin-bottom: 4px; font-weight: bold; color: #1f2937;">
+                © 2026 Ts. Muhammad Taufik Ramli / KV Nibong Tebal. Hak Cipta Terpelihara (All Rights Reserved).
+            </p>
+            <p style="margin-bottom: 4px;">
+                📍 Program Teknologi Elektronik, Kolej Vokasional Nibong Tebal, Jalan Bukit Panchor, 14300 Nibong Tebal, Pulau Pinang
+            </p>
+            <p style="margin-bottom: 0;">
+                📧 Hubungi Sokongan: <a href="mailto:mtaufikramli@gmail.com" style="color: #2563eb; text-decoration: none; font-weight: 500;">mtaufikramli@gmail.com</a>
+            </p>
+        </div>
+    """, unsafe_allow_html=True)
+
 def generate_combined_visual_report(annotated_pdf_bytes, all_pages_errors_list, ignored_errors,
                                      margin_left_mm=40, margin_right_mm=25, 
                                      margin_top_mm=25, margin_bottom_mm=25):
@@ -78,26 +221,37 @@ def generate_combined_visual_report(annotated_pdf_bytes, all_pages_errors_list, 
             if (iss.get("id") or f"{p_num}_{iss.get('msg', '')}") not in ignored_errors
         ]
 
+        # 1. Bina tajuk laporan muka surat mengikut bahasa pilihan (BM/EN)
+        title_text = TEXT_I18N[lang_code]["report_title"].format(page_num=p_num + 1)
+
+        # 2. Masukkan ke dalam PDF
         new_page.insert_text(
             fitz.Point(435, 35), 
-            f"Laporan Format: Muka Surat {p_num + 1}", 
+            title_text, 
             fontsize=13, 
             fontname="helv", 
             color=(0.1, 0.1, 0.1)
         )
 
         if not active_issues:
+            # Dapatkan mesej status mengikut bahasa pilihan (BM/EN)
+            text_ok = TEXT_I18N[lang_code]["status_ok"]
+
             new_page.insert_text(
                 fitz.Point(435, 65), 
-                "[OK] STATUS: SEMPURNA / TIADA ISU FORMAT", 
+                text_ok, 
                 fontsize=11, 
                 fontname="helv", 
                 color=(0.06, 0.72, 0.5)
             )
         else:
+            # 1. Bina ayat header amaran mengikut pilihan bahasa
+            text_header = TEXT_I18N[lang_code]["warning_header"].format(count=len(active_issues))
+
+            # 2. Masukkan ke dalam PDF
             new_page.insert_text(
                 fitz.Point(435, 65), 
-                f"[AMARAN] Dikesan {len(active_issues)} Isu Format:", 
+                text_header, 
                 fontsize=10, 
                 fontname="helv", 
                 color=(0.88, 0.11, 0.28)
@@ -221,8 +375,53 @@ st.set_page_config(
 
 st.markdown("""
     <style>
+        /* 1. Smooth Scroll */
         html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"] {
             scroll-behavior: smooth !important;
+        }
+
+        /* 2. 🎨 STYLING SIDEBAR PREMIUM (THEME UNGU USM) */
+        section[data-testid="stSidebar"] {
+            background: linear-gradient(180deg, #f5f3ff 0%, #faf5ff 100%) !important;
+            border-right: 1px solid #e9d5ff !important;
+        }
+
+        /* Teks & Tajuk dalam Sidebar */
+        section[data-testid="stSidebar"] h1, 
+        section[data-testid="stSidebar"] h2, 
+        section[data-testid="stSidebar"] h3, 
+        section[data-testid="stSidebar"] h4,
+        section[data-testid="stSidebar"] label,
+        section[data-testid="stSidebar"] .stMarkdown p {
+            color: #4c1d95 !important;
+            font-weight: 700 !important;
+        }
+
+        /* Kotak Input & Selectbox dalam Sidebar */
+        section[data-testid="stSidebar"] div[data-baseweb="input"],
+        section[data-testid="stSidebar"] div[data-baseweb="select"] {
+            background-color: #ffffff !important;
+            border-radius: 10px !important;
+            border: 1px solid #d8b4fe !important;
+            box-shadow: 0 2px 6px rgba(107, 33, 168, 0.04) !important;
+        }
+
+        /* Butang Log Out dalam Sidebar */
+        section[data-testid="stSidebar"] button {
+            background-color: #ffffff !important;
+            color: #dc2626 !important;
+            border: 1px solid #fca5a5 !important;
+            border-radius: 10px !important;
+            font-weight: 700 !important;
+            box-shadow: 0 2px 8px rgba(220, 38, 38, 0.08) !important;
+            transition: all 0.3s ease !important;
+        }
+
+        section[data-testid="stSidebar"] button:hover {
+            background-color: #fef2f2 !important;
+            border-color: #ef4444 !important;
+            color: #b91c1c !important;
+            transform: translateY(-1px);
         }
     </style>
     <div id="top-anchor"></div>
@@ -271,20 +470,126 @@ def logout():
 
 
 if not st.session_state.authenticated:
-    st.markdown("<div id='top-of-page'></div>", unsafe_allow_html=True)
-    st.title("📄 Semakan Format Tesis USM")
-    st.caption(f"📌 **Versi Sistem:** {APP_VERSION}")
-    st.markdown("---")
+    
+    # =========================================================================
+    # 🎨 1. CSS REKA BENTUK PREMIUM (USM PURPLE & GOLD ACCENTS)
+    # =========================================================================
+    st.markdown("""
+        <style>
+        /* Gradient Tajuk Utama */
+        .main-header {
+            text-align: center;
+            font-size: 2.2rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #4c1d95 0%, #6b21a8 50%, #d97706 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-top: 5px;
+            margin-bottom: 2px;
+        }
+        
+        .sub-header {
+            text-align: center;
+            color: #64748b;
+            font-size: 0.9rem;
+            font-weight: 500;
+            margin-bottom: 25px;
+        }
 
-    col_login, _ = st.columns([1.5, 1])
-    with col_login:
+        /* Kad Kad Log Masuk Top Header */
+        .login-card-header {
+            background: #ffffff;
+            padding: 22px 25px 12px 25px;
+            border-radius: 16px 16px 0 0;
+            border: 1px solid #e2e8f0;
+            border-bottom: none;
+            box-shadow: 0 10px 25px -5px rgba(107, 33, 168, 0.08);
+            border-top: 5px solid #6b21a8;
+            text-align: center;
+        }
+
+        .login-title {
+            color: #1e293b;
+            font-size: 1.3rem;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .login-subtitle {
+            color: #64748b;
+            font-size: 0.85rem;
+        }
+
+        /* Styling Kad Form & Butang Submit */
+        div[data-testid="stForm"] {
+            border-radius: 0 0 16px 16px !important;
+            border: 1px solid #e2e8f0 !important;
+            border-top: none !important;
+            box-shadow: 0 10px 25px -5px rgba(107, 33, 168, 0.08) !important;
+            background-color: #ffffff !important;
+            padding: 5px 25px 25px 25px !important;
+        }
+
+        div[data-testid="stForm"] button {
+            background: linear-gradient(135deg, #6b21a8 0%, #581c87 100%) !important;
+            color: #ffffff !important;
+            font-weight: 600 !important;
+            font-size: 0.95rem !important;
+            border-radius: 10px !important;
+            border: none !important;
+            box-shadow: 0 4px 14px rgba(107, 33, 168, 0.3) !important;
+            transition: all 0.3s ease !important;
+        }
+
+        div[data-testid="stForm"] button:hover {
+            background: linear-gradient(135deg, #7e22ce 0%, #6b21a8 100%) !important;
+            box-shadow: 0 6px 18px rgba(107, 33, 168, 0.45) !important;
+            transform: translateY(-1px);
+        }
+
+        /* Kad Penafian Modern */
+        .disclaimer-card {
+            background: #fffbe0;
+            border-left: 4px solid #f59e0b;
+            padding: 18px 22px;
+            border-radius: 12px;
+            color: #78350f;
+            font-size: 0.88rem;
+            line-height: 1.6;
+            box-shadow: 0 4px 12px rgba(245, 158, 11, 0.08);
+            margin-top: 20px;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+
+    # =========================================================================
+    # 📌 2. TAJUK UTAMA (CENTERED GRADIENT)
+    # =========================================================================
+    st.markdown('<div class="main-header">🎓 Semakan Format Tesis USM</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="sub-header">📌 Versi Sistem: {APP_VERSION} | Universiti Sains Malaysia</div>', unsafe_allow_html=True)
+
+    # =========================================================================
+    # 🔒 3. KAD LOG MASUK CENTERED (GUNAKAN FORM & PASSWORD_RAHSIA ABANG)
+    # =========================================================================
+    col_left, col_center, col_right = st.columns([0.8, 2, 0.8])
+
+    with col_center:
+        st.markdown("""
+            <div class="login-card-header">
+                <div class="login-title">🔒 Log Masuk Akses</div>
+                <div class="login-subtitle">Masukkan kata laluan akses untuk memulakan semakan</div>
+            </div>
+        """, unsafe_allow_html=True)
+
         with st.form("login_form"):
-            st.subheader("🔒 Log Masuk Akses")
             password_input = st.text_input(
-                "Masukkan Kata Laluan Akses:", type="password"
+                "Masukkan Kata Laluan Akses:",
+                type="password",
+                placeholder="••••••••••••",
+                label_visibility="collapsed"
             )
             submit_button = st.form_submit_button(
-                "🔑 Log Masuk", use_container_width=True
+                "🔑 Log Masuk Akses", use_container_width=True
             )
 
             if submit_button:
@@ -294,53 +599,58 @@ if not st.session_state.authenticated:
                 else:
                     st.error("🔑 Kata laluan salah. Sila cuba lagi!")
 
-    st.markdown("---")
-    st.warning("""
-    ### ⚠️ Penafian (Disclaimer) & Panduan Penggunaan
-    1. **Sistem Bantu Semak Otomatik:** Aplikasi ini dibangunkan sebagai **alat bantuan awal** untuk mengesan ralat format utama.
-    2. **Kelulusan Rasmi:** Keputusan semakan aplikasi ini **bukan penentu mutlak**. Pengguna bertanggungjawab merujuk *Garis Panduan Penulisan Tesis USM* rasmi.
-    3. **Kerahsiaan Fail:** Fail PDF diproses secara *in-memory* dan **tidak disimpan secara kekal**.
-    """)
+    # =========================================================================
+    # ⚠️ KAD PENAFIAN (DISCLAIMER) MODERN & LENGKAP
+    # =========================================================================
+    col_d1, col_d2, col_d3 = st.columns([0.3, 3.4, 0.3])
+    with col_d2:
+        st.markdown("""
+            <div class="disclaimer-card">
+                <strong style="font-size:0.95rem; color:#92400e;">⚠️ Penafian (Disclaimer) & Panduan Penggunaan:</strong><br><br>
+                1. <strong>Sistem Bantu Semak Otomatik:</strong> Aplikasi ini dibangunkan sebagai <strong>alat bantuan awal</strong> untuk mengesan ralat format utama secara pantas.<br>
+                2. <strong>Sifat Fail PDF:</strong> Semakan berasaskan teks PDF digital asli. Fail imbasan (<em>scanned document</em>) atau gambar tanpa lapisan OCR mungkin tidak dapat dikesan secara tepat.<br>
+                3. <strong>Kelulusan Rasmi & Semakan Akhir:</strong> Keputusan semakan aplikasi ini <strong>bukan penentu mutlak</strong>. Pengguna tetap bertanggungjawab membuat semakan manual akhir merujuk <em>Garis Panduan Penulisan Tesis USM</em> rasmi.<br>
+                4. <strong>Kerahsiaan Data & Fail:</strong> Fail PDF diproses secara <em>in-memory</em> sahaja dan <strong>tidak disimpan secara kekal</strong> dalam mana-mana pelayan.<br>
+                5. <strong>Tanggungjawab Pengguna:</strong> Pembangun sistem tidak bertanggungjawab atas sebarang penolakan atau isu format semasa penyerahan rasmi tesis kepada IPS USM.
+            </div>
+        """, unsafe_allow_html=True)
 
     # ==================== FOOTER HAK CIPTA ====================
-    st.markdown("---")
-    st.markdown(
-        """
-        <div style="text-align: center; color: #4b5563; font-size: 0.85rem; line-height: 1.6; background-color: #f9fafb; padding: 15px; border-radius: 8px; border: 1px solid #e5e7eb;">
-            <p style="margin-bottom: 4px; font-weight: bold; color: #1f2937;">
-                © 2026 Ts. Muhammad Taufik Ramli / KV Nibong Tebal. Hak Cipta Terpelihara (All Rights Reserved).
-            </p>
-            <p style="margin-bottom: 4px;">
-                📍 Program Teknologi Elektronik, Kolej Vokasional Nibong Tebal, Jalan Bukit Panchor, 14300 Nibong Tebal, Pulau Pinang
-            </p>
-            <p style="margin-bottom: 0;">
-                📧 Hubungi Sokongan: <a href="mailto:mtaufikramli@gmail.com" style="color: #2563eb; text-decoration: none; font-weight: 500;">mtaufikramli@gmail.com</a>
-            </p>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+    paparkan_footer()
 
     st.stop()
 
 # ==================== SIDEBAR & TETAPAN ====================
 with st.sidebar:
-    # st.caption(f"📌 **Versi:** {APP_VERSION}")
+    # 1. BUTANG LOG OUT
     if st.button("🚪 Log Out", type="secondary", use_container_width=True):
         logout()
+        
     st.markdown("---")
+
+    # 🌐 2. PILIHAN BAHASA LAPORAN (DI ATAS TETAPAN TEMPLAT)
+    report_lang_choice = st.selectbox(
+        "🌐 Bahasa Laporan / Language",
+        ["Bahasa Melayu (BM)", "English (EN)"]
+    )
+    # Setkan kod bahasa untuk digunakan dalam skrip (BM atau EN)
+    lang_code = "EN" if "English" in report_lang_choice else "BM"
+
+    #st.markdown("---")
+
+    # ⚙️ 3. TETAPAN TEMPLAT TESIS
     st.header("⚙️ Tetapan Templat Tesis")
 
     default_left, default_right, default_top, default_bottom = 40.0, 25.0, 25.0, 25.0
     default_fonts = [
-    "Times New Roman",
-    "TimesNewRoman",
-    "Arial",
-    "Helvetica",
-    "TeXGyreTermes",
-    "TeXGyreTermesX",
-    "TeX Gyre Termes",
-]
+        "Times New Roman",
+        "TimesNewRoman",
+        "Arial",
+        "Helvetica",
+        "TeXGyreTermes",
+        "TeXGyreTermesX",
+        "TeX Gyre Termes",
+    ]
 
     preset = st.selectbox(
         "Pilih Templat Universiti",
@@ -463,22 +773,32 @@ def generate_pdf_report(filtered_errors, total_pages):
     pdf.set_auto_page_break(auto=True, margin=15)
     pdf.add_page()
     
-    # Tajuk Utama
+    # 1. Dapatkan teks tajuk & subtajuk mengikut bahasa (BM/EN)
+    main_title = TEXT_I18N[lang_code]["pdf_main_title"]
+    sub_info = TEXT_I18N[lang_code]["pdf_total_pages"].format(total_pages=total_pages)
+
+    # 2. Tajuk Utama
     pdf.set_font("Helvetica", "B", 16)
-    pdf.cell(0, 10, "Laporan Semakan Format Tesis", new_x="LMARGIN", new_y="NEXT", align="C")
-    
-    # Subtajuk Info
+    pdf.cell(0, 10, main_title, new_x="LMARGIN", new_y="NEXT", align="C")
+
+    # 3. Subtajuk Info
     pdf.set_font("Helvetica", "", 10)
-    pdf.cell(0, 6, f"Jumlah Muka Surat Diperiksa: {total_pages}", new_x="LMARGIN", new_y="NEXT", align="C")
+    pdf.cell(0, 6, sub_info, new_x="LMARGIN", new_y="NEXT", align="C")
     pdf.ln(5)
 
     if not filtered_errors:
         pdf.set_font("Helvetica", "B", 12)
-        pdf.cell(0, 10, "Tiada isu format dikesan. Tesis mematuhi piawaian!", new_x="LMARGIN", new_y="NEXT", align="C")
+        # Dapatkan mesej tiada isu
+        msg_perfect = TEXT_I18N[lang_code]["no_issue"]
+        pdf.cell(0, 10, msg_perfect, new_x="LMARGIN", new_y="NEXT", align="C")
     else:
         pdf.set_font("Helvetica", "B", 11)
-        pdf.cell(30, 8, "Muka Surat", border=1, align="C")
-        pdf.cell(160, 8, "Butiran Isu Format", border=1, align="C", new_x="LMARGIN", new_y="NEXT")
+        # Dapatkan tajuk kolum jadual dinamik
+        col_page = TEXT_I18N[lang_code]["pdf_col_page"]
+        col_details = TEXT_I18N[lang_code]["pdf_col_details"]
+        
+        pdf.cell(30, 8, col_page, border=1, align="C")
+        pdf.cell(160, 8, col_details, border=1, align="C", new_x="LMARGIN", new_y="NEXT")
 
         pdf.set_font("Helvetica", "", 9)
         for item in filtered_errors:
@@ -533,12 +853,134 @@ def create_download_button_html(file_bytes, filename, button_text, color="#2563e
     </a>
     """
 
-st.title("📄 Sistem Semakan Format Tesis (USM Standard)")
-uploaded_file = st.file_uploader("Muat Naik Fail PDF Tesis", type=["pdf"])
+# =========================================================================
+# 🎨 CSS KEMASKINI PREMIUM (TAJUK BESAR & BUTANG KONTRAST TINGGI)
+# =========================================================================
+st.markdown("""
+    <style>
+    /* 1. Tajuk Utama BESAR & MANTAP */
+    .main-header-large {
+        text-align: center;
+        font-size: 2.8rem !important;
+        font-weight: 900 !important;
+        background: linear-gradient(135deg, #4c1d95 0%, #7e22ce 50%, #d97706 100%);
+        -webkit-background-clip: text !important;
+        -webkit-text-fill-color: transparent !important;
+        margin-top: 10px !important;
+        margin-bottom: 6px !important;
+        line-height: 1.25 !important;
+        letter-spacing: -0.5px;
+    }
+    
+    .sub-header-large {
+        text-align: center;
+        color: #64748b !important;
+        font-size: 1.05rem !important;
+        font-weight: 600 !important;
+        margin-bottom: 35px !important;
+    }
 
+    /* 2. Kad & Kotak Dropzone Upload */
+    .upload-card-header {
+        background: #ffffff;
+        padding: 22px 28px 12px 28px;
+        border-radius: 16px 16px 0 0;
+        border: 1px solid #e2e8f0;
+        border-bottom: none;
+        border-top: 5px solid #6b21a8;
+        box-shadow: 0 10px 25px -5px rgba(107, 33, 168, 0.08);
+    }
+
+    .upload-title {
+        color: #1e293b;
+        font-size: 1.25rem;
+        font-weight: 800;
+        margin-bottom: 4px;
+    }
+
+    .upload-subtitle {
+        color: #64748b;
+        font-size: 0.9rem;
+    }
+
+    /* Styling Dropzone Container */
+    section[data-testid="stFileUploaderDropzone"] {
+        background-color: #faf5ff !important;
+        border: 2px dashed #9333ea !important;
+        border-radius: 0 0 16px 16px !important;
+        padding: 30px 20px !important;
+        box-shadow: 0 10px 25px -5px rgba(107, 33, 168, 0.08) !important;
+        transition: all 0.3s ease !important;
+    }
+
+    section[data-testid="stFileUploaderDropzone"]:hover {
+        background-color: #f3e8ff !important;
+        border-color: #6b21a8 !important;
+    }
+
+    /* 3. PEMBAIKAN BUTANG UPLOAD (TULISAN PUTIH TERANG - TIDAK TENGGELAM) */
+    section[data-testid="stFileUploaderDropzone"] button {
+        background: linear-gradient(135deg, #6b21a8 0%, #581c87 100%) !important;
+        border-radius: 10px !important;
+        padding: 8px 22px !important;
+        border: none !important;
+        box-shadow: 0 4px 14px rgba(107, 33, 168, 0.35) !important;
+    }
+
+    /* PAKSA TEKS & IKON JADI PUTIH TERANG (PINTAS SEBAB STREAMLIT) */
+    section[data-testid="stFileUploaderDropzone"] button,
+    section[data-testid="stFileUploaderDropzone"] button *,
+    section[data-testid="stFileUploaderDropzone"] button p,
+    section[data-testid="stFileUploaderDropzone"] button span,
+    section[data-testid="stFileUploaderDropzone"] button div {
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important; /* KUNCI UNTUK SELESAIKAN ISU TULISAN GELAP */
+        font-weight: 700 !important;
+        font-size: 0.95rem !important;
+        opacity: 1 !important;
+    }
+
+    section[data-testid="stFileUploaderDropzone"] button:hover {
+        background: linear-gradient(135deg, #7e22ce 0%, #6b21a8 100%) !important;
+        box-shadow: 0 6px 18px rgba(107, 33, 168, 0.5) !important;
+        transform: translateY(-1px);
+    }
+
+    /* Teks arahan sebelah butang (200MB per file • PDF) */
+    section[data-testid="stFileUploaderDropzone"] [data-testid="stMarkdownContainer"] p {
+        color: #581c87 !important;
+        font-weight: 600 !important;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+# =========================================================================
+# 📌 TAJUK UTAMA (BESAR & KEMAS)
+# =========================================================================
+st.markdown('<div class="main-header-large">🎓 Sistem Semakan Format Tesis USM</div>', unsafe_allow_html=True)
+st.markdown(f'<div class="sub-header-large">📌 Versi Sistem: {APP_VERSION} | Modul Semakan Automatik USM Standard</div>', unsafe_allow_html=True)
+
+# =========================================================================
+# 📤 KAD MUAT NAIK FAIL (MANTAP & TEKS PUTIH CLEAR)
+# =========================================================================
+st.markdown("""
+    <div class="upload-card-header">
+        <div class="upload-title">📤 Muat Naik Fail PDF Tesis</div>
+        <div class="upload-subtitle">Sila pilih atau seret fail PDF tesis untuk diproses oleh sistem semakan.</div>
+    </div>
+""", unsafe_allow_html=True)
+
+uploaded_file = st.file_uploader(
+    "Muat Naik Fail PDF Tesis", 
+    type=["pdf"], 
+    label_visibility="collapsed"
+)
+
+# =========================================================================
+# ⚙️ 4. LOGIK PEMPROSESAN FAIL PDF (KEKALKAN LOGIK ASAL ABANG)
+# =========================================================================
 if uploaded_file is not None:
-    # 📌 TUKAR: Gunakan .getvalue() bukannya .read()
-    # .getvalue() mengekalkan data PDF walaupun Streamlit di-rerun berulang kali
+    # 📌 Gunakan .getvalue() mengekalkan data PDF
     pdf_bytes = uploaded_file.getvalue()
     doc = fitz.open(stream=pdf_bytes, filetype="pdf")
 
@@ -711,8 +1153,11 @@ if uploaded_file is not None:
 
                             # Amaran hanya diberi jika nombor di bawah TIDAK DITUTUP kotak (memang terdedah)
                             if is_landscape and is_at_bottom_zone:
+                                # 1. Bina mesej amaran berdasarkan bahasa pilihan (BM/EN)
+                                msg_landscape = TEXT_I18N[lang_code]["landscape_page_num"].format(num=word_str)
+
                                 page_errors.append({
-                                    "msg": f"Kedudukan Nombor Muka Surat Salah: Nombor '{word_str}' dikesan di BAHAGIAN BAWAH halaman Landscape. Mengikut piawaian USM, nombor muka surat mestilah diletakkan di SEBELAH KIRI.",
+                                    "msg": msg_landscape,
                                     "bbox": (wx0, wy0, wx1, wy1),
                                 })
         # -----------------------------------------------------------------
@@ -752,8 +1197,11 @@ if uploaded_file is not None:
 
                 # KES TAJUK BAB SEBENAR (Hanya disemak di luar muka surat TOC)
                 if re.search(r'^(CHAPTER|BAB)\s+(\d+|[IVXLCDM]+)\s+[A-Z0-9\s\:\-\&\(\)]{2,}$', text):
+                    # 1. Bina mesej ralat mengikut bahasa pilihan (BM/EN)
+                    msg_chapter = TEXT_I18N[lang_code]["chapter_title_same_line"].format(text=text)
+
                     page_errors.append({
-                        "msg": f"Tajuk Bab: '{text}' ditulis pada baris yang sama. 'CHAPTER' dan tajuk bab (contoh: INTRODUCTION) mestilah dipisahkan dengan ENTER (baris baharu).",
+                        "msg": msg_chapter,
                         "bbox": item["bbox"],
                     })
                     break
@@ -769,8 +1217,15 @@ if uploaded_file is not None:
 
                         if same_y_level and is_on_right:
                             clean_title_snippet = other_item["text"][:25]
+                            
+                            # 1. Bina mesej ralat mengikut bahasa pilihan (BM/EN)
+                            msg_y_level = TEXT_I18N[lang_code]["chapter_same_y_level"].format(
+                                text=text, 
+                                snippet=clean_title_snippet
+                            )
+
                             page_errors.append({
-                                "msg": f"Tajuk Bab: '{text}' dan '{clean_title_snippet}' berada pada baris yang sama. Sila tekan ENTER untuk meletakkan tajuk bab di bawah.",
+                                "msg": msg_y_level,
                                 "bbox": item["bbox"],
                             })
                             break
@@ -812,7 +1267,11 @@ if uploaded_file is not None:
                     
                     top_margin_violations.append({
                         "y0": by0,
-                        "msg": f"Teks melanggar Margin Atas {limit_mm}mm: '{clean_snippet}...' (Kedudukan semasa: {actual_y_mm}mm dari tepi atas)",
+                        "msg": TEXT_I18N[lang_code]["margin_top"].format(
+                            limit=limit_mm, 
+                            text=clean_snippet, 
+                            val=actual_y_mm
+                        ),
                         "bbox": (bx0, by0, bx1, by1),
                     })
 
@@ -822,9 +1281,18 @@ if uploaded_file is not None:
                 if d_rect:
                     dy0 = d_rect[1]
                     if dy0 < (cur_m_top - 2.0) and dy0 > 30.0:
+                        # 1. Kira nilai kedudukan dalam mm
+                        actual_y_mm = round(dy0 / 2.83465, 1)
+
+                        # 2. Bina mesej amaran berdasarkan bahasa pilihan (BM/EN)
+                        msg_table_top = TEXT_I18N[lang_code]["table_line_margin_top"].format(
+                            limit=40, 
+                            val=actual_y_mm
+                        )
+
                         top_margin_violations.append({
                             "y0": dy0,
-                            "msg": f"Garisan Jadual/Bingkai melanggar Margin Atas 40mm ({round(dy0 / 2.83465, 1)}mm dikesan).",
+                            "msg": msg_table_top,
                             "bbox": d_rect,
                         })
 
@@ -875,8 +1343,11 @@ if uploaded_file is not None:
                 re.IGNORECASE
             )
             if not month_year_pattern.search(full_page_text):
+                # 1. Bina mesej ralat mengikut bahasa pilihan (BM/EN)
+                msg_month_year = TEXT_I18N[lang_code]["title_page_month_year"]
+
                 page_errors.append({
-                    "msg": "Title Page (M/S 1-2): Bulan dan Tahun hantaran (Month and Year) tidak dikesan.",
+                    "msg": msg_month_year,
                     "bbox": None,
                 })
 
@@ -904,9 +1375,17 @@ if uploaded_file is not None:
 
         # Muka Surat 3 ke atas (Acknowledgement dan seterusnya) WAJIB ada nombor muka surat
         if not skip_pagenum_check and not has_pagenum_found:
-            loc_label = "sebelah kiri/atas" if is_landscape else "bahagian bawah tengah"
+            # 1. Dapatkan label lokasi mengikut orientasi dan bahasa
+            if is_landscape:
+                loc_label = TEXT_I18N[lang_code]["loc_landscape"]
+            else:
+                loc_label = TEXT_I18N[lang_code]["loc_portrait"]
+
+            # 2. Bina mesej amaran dinamik
+            msg_missing_num = TEXT_I18N[lang_code]["missing_page_num"].format(location=loc_label)
+
             page_errors.append({
-                "msg": f"Nombor muka surat tidak dikesan di {loc_label}.",
+                "msg": msg_missing_num,
                 "bbox": None,
             })
 
@@ -920,16 +1399,22 @@ if uploaded_file is not None:
             # 1. Pastikan bernombor muka surat 'ii' (Romawi)
             has_ii_pagenum = "II" in full_page_text.upper().split() or has_pagenum_found
             if not has_ii_pagenum:
+                # 1. Dapatkan mesej ralat dinamik (BM/EN)
+                msg_ack = TEXT_I18N[lang_code]["ack_missing_ii"]
+
                 page_errors.append({
-                    "msg": "Acknowledgement / Penghargaan: Muka surat ini wajib diletakkan nombor muka surat 'ii'.",
+                    "msg": msg_ack,
                     "bbox": None,
                 })
 
             # 2. Amaran jika teks terlalu panjang (Garis panduan USM: Had 1 muka surat)
             word_count = len(full_page_text.split())
             if word_count > 450:  # Anggaran purata patah perkataan penuh 1 muka surat
+                # 1. Dapatkan mesej ralat dinamik (BM/EN)
+                msg_ack_limit = TEXT_I18N[lang_code]["ack_max_one_page"]
+
                 page_errors.append({
-                    "msg": "Acknowledgement / Penghargaan: Dihadkan kepada 1 muka surat sahaja.",
+                    "msg": msg_ack_limit,
                     "bbox": None,
                 })
 
@@ -943,16 +1428,18 @@ if uploaded_file is not None:
             # 1. Semak penomboran muka surat bermula dengan 'iii' (Romawi)
             has_iii_pagenum = "III" in full_page_text.upper().split() or has_pagenum_found
             if not has_iii_pagenum and page_num == 3:  # Muka surat ke-4 dalam dokumen (indeks 3)
+                msg_toc_iii = TEXT_I18N[lang_code]["toc_missing_iii"]
                 page_errors.append({
-                    "msg": "Table of Contents: Muka surat awal TOC wajib bermula dengan nombor muka surat 'iii'.",
+                    "msg": msg_toc_iii,
                     "bbox": None,
                 })
 
             # 2. Semak Format Hierarki Penomboran Sub-seksyen (Contoh: 1.2.1(a) atau 1.2.1(a)(i))
             invalid_sub_pattern = re.compile(r"\b\d+\.\d+\.\d+[a-z]\b")
             if invalid_sub_pattern.search(full_page_text):
+                msg_toc_sub = TEXT_I18N[lang_code]["toc_invalid_sub"]
                 page_errors.append({
-                    "msg": "Table of Contents: Sub-pembahagian tajuk mestilah menggunakan kurungan, contoh: 1.2.1(a) atau 1.2.1(a)(i).",
+                    "msg": msg_toc_sub,
                     "bbox": None,
                 })
 
@@ -963,22 +1450,28 @@ if uploaded_file is not None:
         is_en_abstract = "ABSTRACT" in full_page_text.upper()
 
         if is_bm_abstrak or is_en_abstract:
-            abstrak_type = "ABSTRAK (BM)" if is_bm_abstrak else "ABSTRACT (EN)"
+            # Label jenis abstrak
+            abstrak_type = TEXT_I18N[lang_code]["abstract_bm_label"] if is_bm_abstrak else TEXT_I18N[lang_code]["abstract_en_label"]
 
             # 1. Semak Had Perkataan (Maksimum 400 perkataan)
             words = full_page_text.split()
             word_count = len(words)
             if word_count > 420:  # Toleransi 20 perkataan untuk tajuk
+                msg_words = TEXT_I18N[lang_code]["abstract_max_words"].format(
+                    type=abstrak_type, 
+                    count=word_count
+                )
                 page_errors.append({
-                    "msg": f"{abstrak_type}: Panjang teks melebihi had 400 perkataan ({word_count} perkataan dikesan).",
+                    "msg": msg_words,
                     "bbox": None,
                 })
 
             # 2. Semak Syarat Satu Perenggan (Single Paragraph Check)
             paragraphs = [p.strip() for p in full_page_text.split("\n\n") if len(p.strip()) > 50]
             if len(paragraphs) > 1:
+                msg_single = TEXT_I18N[lang_code]["abstract_single_para"].format(type=abstrak_type)
                 page_errors.append({
-                    "msg": f"{abstrak_type}: Teks hendaklah ditulis dalam SATU PERENGGAN sahaja.",
+                    "msg": msg_single,
                     "bbox": None,
                 })
 
@@ -1015,8 +1508,9 @@ if uploaded_file is not None:
                     lx0 = first_para_line["bbox"][0]
                     # Indent mesti sekurang-kurangnya 10pt dari margin kiri
                     if lx0 < (cur_m_left + 10.0):
+                        msg_indent = TEXT_I18N[lang_code]["abstract_indent"].format(type=abstrak_type)
                         page_errors.append({
-                            "msg": f"{abstrak_type}: Baris pertama perenggan hendaklah di-indent (indented).",
+                            "msg": msg_indent,
                             "bbox": first_para_line["bbox"],
                         })
 
@@ -1039,8 +1533,11 @@ if uploaded_file is not None:
                 gaps = [round(lines_y[i+1] - lines_y[i], 1) for i in range(len(lines_y)-1)]
                 has_varying_gaps = any(g > 18.0 for g in gaps) and any(g <= 14.0 for g in gaps)
                 if not has_varying_gaps and len(gaps) > 5:
+                    # 1. Dapatkan mesej ralat dinamik (BM/EN)
+                    msg_ref_spacing = TEXT_I18N[lang_code]["ref_spacing_issue"]
+
                     page_errors.append({
-                        "msg": "References: Mesti menggunakan Single-spacing dalam entri dan Double-spacing antara entri rujukan.",
+                        "msg": msg_ref_spacing,
                         "bbox": None,
                     })
 
@@ -1070,8 +1567,9 @@ if uploaded_file is not None:
 
             # 1. Semak Muka Surat Pembatas 'APPENDICES'
             if is_cover_appendix and has_pagenum_found:
+                msg_appendix_divider = TEXT_I18N[lang_code]["appendix_divider_pagenum"]
                 page_errors.append({
-                    "msg": "Appendices: Muka surat pembatas 'APPENDICES' TIDAK BOLEH diletakkan nombor muka surat.",
+                    "msg": msg_appendix_divider,
                     "bbox": None,
                 })
 
@@ -1080,8 +1578,9 @@ if uploaded_file is not None:
                 has_valid_alphabet_label = bool(re.match(r'^(APPENDIX|LAMPIRAN)\s+[A-Z0-9]', appendix_heading_line, re.IGNORECASE))
                 
                 if not has_valid_alphabet_label:
+                    msg_appendix_label = TEXT_I18N[lang_code]["appendix_invalid_label"]
                     page_errors.append({
-                        "msg": "Appendices: Lampiran mestilah dilabel mengikut abjad (contoh: Appendix A, Appendix B).",
+                        "msg": msg_appendix_label,
                         "bbox": None,
                     })
 
@@ -1170,28 +1669,35 @@ if uploaded_file is not None:
                         first_span = line["spans"][0]
                         heading_font = first_span["font"].lower()
                         heading_size = round(first_span["size"], 1)
+                        text_snippet = full_line_text[:30]
 
+                        # 1. Semak Bold
                         is_bold = "bold" in heading_font or "black" in heading_font
                         if not is_bold:
+                            msg_bold = TEXT_I18N[lang_code]["chapter_heading_not_bold"].format(text=text_snippet)
                             page_errors.append({
-                                "msg": f"Tajuk Seksyen/Bab mesti BOLD: '{full_line_text[:30]}...'",
+                                "msg": msg_bold,
                                 "bbox": line["bbox"],
                             })
 
+                        # 2. Semak Jajaran Tengah (Centered)
                         line_center_x = (h_x0 + h_x1) / 2
                         printable_center_x = (cur_m_left + cur_m_right) / 2
                         TOLERANCE_PT = 20.0
                         
                         if abs(line_center_x - printable_center_x) > TOLERANCE_PT:
+                            msg_center = TEXT_I18N[lang_code]["chapter_heading_not_centered"].format(text=text_snippet)
                             page_errors.append({
-                                "msg": f"Tajuk Seksyen/Bab mesti di TENGAH (Centre): '{full_line_text[:30]}...'",
+                                "msg": msg_center,
                                 "bbox": line["bbox"],
                             })
 
+                        # 3. Semak Single Spacing
                         line_height = h_y1 - h_y0
                         if heading_size > 0 and (line_height / heading_size) > 1.4:
+                            msg_spacing = TEXT_I18N[lang_code]["chapter_heading_not_single_spaced"].format(text=text_snippet)
                             page_errors.append({
-                                "msg": f"Tajuk Seksyen/Bab mesti SINGLE SPACING: '{full_line_text[:30]}...'",
+                                "msg": msg_spacing,
                                 "bbox": line["bbox"],
                             })
 
@@ -1242,21 +1748,43 @@ if uploaded_file is not None:
 
                                 # Kesan font tidak dibenarkan jika aksara >= 2
                                 if not font_matched and clean_word_len >= 2:
+                                    # 1. Potong teks pendek untuk paparan
+                                    text_snippet = text[:25]
+                                    
+                                    # 2. Jana mesej ralat dinamik (BM/EN)
+                                    msg_font = TEXT_I18N[lang_code]["font_issue"].format(
+                                        font_name=font_name, 
+                                        text=text_snippet
+                                    )
+
                                     page_errors.append({
-                                        "msg": f"Jenis font tidak sah ({font_name}): '{text[:25]}...'",
+                                        "msg": msg_font,
                                         "bbox": bbox,
                                     })
 
                                 # Semakan saiz font
                                 if clean_word_len >= 3:
+                                    snippet = text[:25]
+                                    
+                                    # 1. Semakan Saiz Terlalu Kecil
                                     if size < 7.5:
+                                        msg_small = TEXT_I18N[lang_code]["font_size_too_small"].format(
+                                            size=size, 
+                                            text=snippet
+                                        )
                                         page_errors.append({
-                                            "msg": f"Saiz font terlalu kecil ({size}pt): '{text[:25]}...'",
+                                            "msg": msg_small,
                                             "bbox": bbox,
                                         })
+                                        
+                                    # 2. Semakan Saiz Tidak Piawai
                                     elif 12.8 < size < 17.5 and not (is_chapter_title or is_prelim_title):
+                                        msg_non_standard = TEXT_I18N[lang_code]["font_size_non_standard"].format(
+                                            size=size, 
+                                            text=snippet
+                                        )
                                         page_errors.append({
-                                            "msg": f"Saiz font tidak piawai ({size}pt): '{text[:25]}...'",
+                                            "msg": msg_non_standard,
                                             "bbox": bbox,
                                         })
 
@@ -1290,15 +1818,17 @@ if uploaded_file is not None:
                                         break
 
                                 if not has_structure_below:
+                                    msg_tbl_pos = TEXT_I18N[lang_code]["table_caption_position_error"].format(text=full_line_text[:35])
                                     page_errors.append({
-                                        "msg": f"Kedudukan Tajuk Jadual Salah / Tiada Jadual Di Bawah: '{full_line_text[:35]}...'",
+                                        "msg": msg_tbl_pos,
                                         "bbox": line["bbox"],
                                     })
 
                                 clean_title_text = full_line_text.strip()
                                 if re.match(r"^(Table|Jadual)\s+\d+(\.\d+)*\.?$", clean_title_text, re.IGNORECASE):
+                                    msg_tbl_split = TEXT_I18N[lang_code]["table_caption_split_format"].format(text=clean_title_text)
                                     page_errors.append({
-                                        "msg": f"Format Tajuk Jadual Terpisah Baris: '{clean_title_text}' (Perlu sebaris dengan penerangan)",
+                                        "msg": msg_tbl_split,
                                         "bbox": line["bbox"],
                                     })
 
@@ -1316,15 +1846,15 @@ if uploaded_file is not None:
                                             image_below_close = True
 
                                 if image_below_close and not image_above_close:
+                                    msg_fig_pos = TEXT_I18N[lang_code]["figure_caption_position_error"].format(text=full_line_text[:35])
                                     page_errors.append({
-                                        "msg": f"Kedudukan Tajuk Rajah Salah (Mesti Di Bawah Rajah): '{full_line_text[:35]}...'",
+                                        "msg": msg_fig_pos,
                                         "bbox": line["bbox"],
                                     })
 
         # =========================================================================
         # BAHAGIAN 3/3: SEMAKAN NOMBOR MUKA SURAT & ANTARAMUKA USER (UI STREAMLIT)
         # =========================================================================
-
         # -----------------------------------------------------------------
         # SEMAKAN KEHADIRAN NOMBOR MUKA SURAT
         # -----------------------------------------------------------------
@@ -1351,17 +1881,19 @@ if uploaded_file is not None:
             kw in full_page_text.upper() for kw in declaration_keywords
         )
 
-        # 1. Semak ralat jika nombor M/S terpaparpada Title Page (m/s 1)
+        # 1. Semak ralat jika nombor M/S terpapar pada Title Page (m/s 1)
         if page_num == 0 and has_pagenum_found:
+            msg_title_forbidden = TEXT_I18N[lang_code]["title_page_pagenum_forbidden"]
             page_errors.append({
-                "msg": "Title Page: Nombor muka surat TIDAK BOLEH dipaparkan.",
+                "msg": msg_title_forbidden,
                 "bbox": None,
             })
 
         # 2. Semak ralat jika nombor M/S terpapar pada Declaration Page (m/s 2)
         if (is_declaration_page or page_num == 1) and has_pagenum_found:
+            msg_decl_forbidden = TEXT_I18N[lang_code]["declaration_pagenum_forbidden"]
             page_errors.append({
-                "msg": "Declaration / Halaman Pengakuan: Nombor muka surat TIDAK BOLEH dipaparkan.",
+                "msg": msg_decl_forbidden,
                 "bbox": None,
             })
 
@@ -1387,13 +1919,20 @@ if uploaded_file is not None:
         )
 
         if not skip_pagenum_check and not has_pagenum_found:
-            loc_label = "sebelah kiri/atas" if is_landscape else "bahagian bawah tengah"
-            page_errors.append(
-                {
-                    "msg": f"Nombor muka surat tidak dikesan di {loc_label}.",
-                    "bbox": None,
-                }
+            # 1. Dapatkan label lokasi mengikut orientasi dan bahasa
+            loc_label = (
+                TEXT_I18N[lang_code]["loc_landscape"] 
+                if is_landscape 
+                else TEXT_I18N[lang_code]["loc_portrait"]
             )
+
+            # 2. Bina mesej ralat dinamik
+            msg_missing_num = TEXT_I18N[lang_code]["missing_page_num"].format(location=loc_label)
+
+            page_errors.append({
+                "msg": msg_missing_num,
+                "bbox": None,
+            })
 
         # Nyah-duplikasi ralat mengikut mesej (message deduplication)
         unique_page_errors = []
@@ -1469,7 +2008,7 @@ if uploaded_file is not None:
     # 🔍 PRATONTON VISUAL PER MUKA SURAT (KOD BERSIH TANPA DUPLIKASI)
     # =========================================================================
     st.markdown("---")
-    st.subheader("🔍 Mod Semakan & Pratonton Visual")
+    st.subheader(TEXT_I18N[lang_code]["ui_review_preview_title"])
 
     for page_num in range(len(doc)):
         unique_page_errors = all_pages_errors_list[page_num]
@@ -1482,16 +2021,20 @@ if uploaded_file is not None:
             if f"p{page_num+1}_{i}" not in st.session_state.ignored_errors
         )
 
-        # 2. Set status label mengikut jumlah isu aktif
+        # 2. Set status label mengikut jumlah isu aktif (Dinamik)
         if active_errors_count > 0:
-            status_str = f"⚠️ Ada Isu: {active_errors_count}"
+            status_str = TEXT_I18N[lang_code]["ui_issues_found"].format(count=active_errors_count)
         else:
-            status_str = "✅ Baik / Disemak"
+            status_str = TEXT_I18N[lang_code]["ui_status_ok"]
 
-        # 3. HANYA 1 EXPANDER SAHAJA PER MUKA SURAT
-        with st.expander(
-            f"Muka Surat {page_num + 1}{tag_landscape} - ({status_str})"
-        ):
+        # 3. Label Expander Dinamik
+        expander_title = TEXT_I18N[lang_code]["ui_page_label"].format(
+            num=page_num + 1,
+            tag=tag_landscape,
+            status=status_str
+        )
+
+        with st.expander(expander_title):
             col_img, col_details = st.columns([1, 1])
             doc_page = doc[page_num]
 
@@ -1513,18 +2056,20 @@ if uploaded_file is not None:
             with col_img:
                 img_with_guides = add_margin_overlay(doc_page, dpi=120, is_landscape=is_landscape)
                 
+                preview_caption = TEXT_I18N[lang_code]["ui_preview_caption"].format(num=page_num + 1)
+                
                 st.image(
                     img_with_guides,
-                    caption=f"Pratonton MS {page_num + 1}",
+                    caption=preview_caption,
                     use_container_width=True,
                 )
 
             # Kolum Kanan: Senarai Isu & Master Checkbox
             with col_details:
                 if not unique_page_errors:
-                    st.success("Muka surat ini bebas daripada ralat format.")
+                    st.success(TEXT_I18N[lang_code]["ui_no_errors_page"])
                 else:
-                    st.write("**Senarai Isu Dikesan:**")
+                    st.write(TEXT_I18N[lang_code]["ui_detected_issues_title"])
 
                     page_err_ids = []
                     for i, err in enumerate(unique_page_errors):
@@ -1537,7 +2082,7 @@ if uploaded_file is not None:
                         
                         with c_check:
                             st.checkbox(
-                                f"Abaikan (Bypass Isu #{i+1})",
+                                TEXT_I18N[lang_code]["ui_bypass_issue"].format(num=i+1),
                                 key=f"cb_{err_id}",
                                 value=is_ignored,
                                 on_change=toggle_bypass,
@@ -1547,7 +2092,7 @@ if uploaded_file is not None:
                         with c_text:
                             # text_input yang read-only: Boleh select, copy, dan jarak sangat rapat
                             st.text_input(
-                                f"Isu #{i+1}",
+                                TEXT_I18N[lang_code]["ui_issue_label"].format(num=i+1),
                                 value=err['msg'],
                                 key=f"txt_{err_id}",
                                 label_visibility="collapsed",
@@ -1582,10 +2127,9 @@ if uploaded_file is not None:
                         st.session_state.report_pdf_bytes = None
                         st.session_state.annotated_pdf_bytes = None
 
-
                     # Widget Checkbox UI
                     st.checkbox(
-                        "☑️ **Abaikan Semua Isu Muka Surat Ini (Bypass All)**",
+                        TEXT_I18N[lang_code]["ui_bypass_all_page"],
                         key=f"cb_all_p{page_num+1}",
                         value=all_bypassed,
                         on_change=toggle_bypass_all_page,
@@ -1629,3 +2173,5 @@ if uploaded_file is not None:
         """,
         height=70
     )
+
+paparkan_footer()
