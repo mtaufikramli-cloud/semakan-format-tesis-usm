@@ -8,6 +8,141 @@ import streamlit as st
 import streamlit.components.v1 as components
 from PIL import Image, ImageDraw
 
+def generate_combined_visual_report(annotated_pdf_bytes, all_pages_errors_list, ignored_errors,
+                                     margin_left_mm=40, margin_right_mm=25, 
+                                     margin_top_mm=25, margin_bottom_mm=25):
+    # Buka PDF berkotak merah ralat
+    annotated_doc = fitz.open("pdf", annotated_pdf_bytes)
+    combined_doc = fitz.open()
+
+    # Saiz A4 Landscape
+    A4_L_WIDTH = 841.89
+    A4_L_HEIGHT = 595.28
+
+    # Kanvas Kiri Tesis
+    thesis_rect = fitz.Rect(15, 20, 407.3, 575)
+
+    for p_num in range(len(annotated_doc)):
+        new_page = combined_doc.new_page(width=A4_L_WIDTH, height=A4_L_HEIGHT)
+
+        # -----------------------------------------------------------------
+        # 📌 1. TEKAP TESIS (LENGKAP DENGAN KOTAK MERAH ERROR)
+        # -----------------------------------------------------------------
+        new_page.show_pdf_page(thesis_rect, annotated_doc, p_num)
+
+        # -----------------------------------------------------------------
+        # 📌 2. LUKIS GARISAN MARGIN PUTUS-PUTUS MERAH LEMBUT (FAINT RED)
+        # -----------------------------------------------------------------
+        scale_x = thesis_rect.width / 595.28
+        scale_y = thesis_rect.height / 841.89
+
+        m_left_pt = margin_left_mm * 2.83465
+        m_right_pt = (210 - margin_right_mm) * 2.83465
+        m_top_pt = margin_top_mm * 2.83465
+        m_bottom_pt = (297 - margin_bottom_mm) * 2.83465
+
+        x_left = thesis_rect.x0 + (m_left_pt * scale_x)
+        x_right = thesis_rect.x0 + (m_right_pt * scale_x)
+        y_top = thesis_rect.y0 + (m_top_pt * scale_y)
+        y_bottom = thesis_rect.y0 + (m_bottom_pt * scale_y)
+
+        shape_margin = new_page.new_shape()
+        shape_margin.draw_line(fitz.Point(x_left, thesis_rect.y0), fitz.Point(x_left, thesis_rect.y1))
+        shape_margin.draw_line(fitz.Point(x_right, thesis_rect.y0), fitz.Point(x_right, thesis_rect.y1))
+        shape_margin.draw_line(fitz.Point(thesis_rect.x0, y_top), fitz.Point(thesis_rect.x1, y_top))
+        shape_margin.draw_line(fitz.Point(thesis_rect.x0, y_bottom), fitz.Point(thesis_rect.x1, y_bottom))
+        
+        shape_margin.finish(color=(0.95, 0.45, 0.45), dashes="[3 3]", stroke_opacity=0.55, width=0.6)
+        shape_margin.commit()
+
+        # Bingkai kelabu nipis luar kertas
+        shape_border = new_page.new_shape()
+        shape_border.draw_rect(thesis_rect)
+        shape_border.finish(color=(0.8, 0.8, 0.8), width=0.5)
+        shape_border.commit()
+
+        # -----------------------------------------------------------------
+        # 📌 3. GARISAN PEMISAH TEGAK (CENTER DIVIDER)
+        # -----------------------------------------------------------------
+        shape_divider = new_page.new_shape()
+        shape_divider.draw_line(fitz.Point(420, 15), fitz.Point(420, 580))
+        shape_divider.finish(color=(0.7, 0.7, 0.7), dashes="[4 4]", width=1)
+        shape_divider.commit()
+
+        # -----------------------------------------------------------------
+        # 📌 4. KANVAS KANAN: LAPORAN ISU FORMAT (KETINGGIAN DINAMIK)
+        # -----------------------------------------------------------------
+        raw_issues = all_pages_errors_list[p_num] if p_num < len(all_pages_errors_list) else []
+        active_issues = [
+            iss for iss in raw_issues 
+            if (iss.get("id") or f"{p_num}_{iss.get('msg', '')}") not in ignored_errors
+        ]
+
+        new_page.insert_text(
+            fitz.Point(435, 35), 
+            f"Laporan Format: Muka Surat {p_num + 1}", 
+            fontsize=13, 
+            fontname="helv", 
+            color=(0.1, 0.1, 0.1)
+        )
+
+        if not active_issues:
+            new_page.insert_text(
+                fitz.Point(435, 65), 
+                "[OK] STATUS: SEMPURNA / TIADA ISU FORMAT", 
+                fontsize=11, 
+                fontname="helv", 
+                color=(0.06, 0.72, 0.5)
+            )
+        else:
+            new_page.insert_text(
+                fitz.Point(435, 65), 
+                f"[AMARAN] Dikesan {len(active_issues)} Isu Format:", 
+                fontsize=10, 
+                fontname="helv", 
+                color=(0.88, 0.11, 0.28)
+            )
+
+            y_pos = 85
+            for idx, issue in enumerate(active_issues, 1):
+                # Ambil mesej daripada pelbagai nama kunci yang mungkin digunakan
+                msg_text = issue.get("msg") or issue.get("message") or issue.get("text") or str(issue)
+                msg_clean = str(msg_text).replace("*", "")
+                text_content = f"{idx}. {msg_clean}"
+
+                # 📌 Kira ketinggian petak secara dinamik mengikut panjang ayat
+                # Anggaran ~65 karakter setiap baris pada lebar petak 385pt
+                estimated_lines = max(1, (len(text_content) // 60) + 1)
+                box_height = max(32, (estimated_lines * 13) + 10)
+
+                box_rect = fitz.Rect(435, y_pos, 820, y_pos + box_height)
+                
+                # Lukis petak latar kelabu
+                box_shape = new_page.new_shape()
+                box_shape.draw_rect(box_rect)
+                box_shape.finish(color=(0.85, 0.85, 0.85), fill=(0.97, 0.97, 0.97), width=0.5)
+                box_shape.commit()
+                
+                # Masukkan teks dengan ruang margin dalaman (padding)
+                inner_rect = fitz.Rect(441, y_pos + 5, 814, y_pos + box_height - 3)
+                new_page.insert_textbox(
+                    inner_rect, 
+                    text_content, 
+                    fontsize=8.5, 
+                    fontname="helv", 
+                    color=(0.2, 0.2, 0.2)
+                )
+
+                y_pos += box_height + 8  # Jarak ke petak seterusnya
+
+                if y_pos > 550:
+                    break
+
+    pdf_bytes = combined_doc.tobytes()
+    combined_doc.close()
+    annotated_doc.close()
+    return pdf_bytes
+
 # 📌 INIKAN INITIALIZATION BERSAMA PERISAI SESSION STATE
 if "ignored_errors" not in st.session_state:
     st.session_state.ignored_errors = set()
@@ -94,18 +229,27 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 PASSWORD_RAHSIA = "USM2026"
-APP_VERSION = "v1.2.0"
+APP_VERSION = "v1.2.1"
 
 # Papar versi dan butang info di Sidebar
 col_v1, col_v2 = st.sidebar.columns([3, 1])
 
 with col_v1:
-    st.caption(f"📌**Versi Sistem:** {APP_VERSION}")
+    st.caption(f"📌 **Versi Sistem:** {APP_VERSION}")
 
 with col_v2:
     with st.popover("ℹ️ Info"):
         st.markdown(f"### 📋 Log Kemaskini ({APP_VERSION})")
         st.markdown("""
+        **v1.2.1**
+        * **Garisan Margin Visual Lembut:** Melukis 4 garisan margin putus-putus merah pudar (*faint red*) pada kanvas visual tesis persis paparan *live preview*.
+        * **Paparan Teks Isu Dinamik:** Membaiki isu teks ralat terpotong pada kad laporan kanan dengan pengiraan ketinggian petak secara dinamik.
+        * **Kotak Merah Ralat PDF:** Memastikan semua petak ralat merah pada teks ditekap 100% lengkap pada visual tesis kanvas kiri.
+        * **Nama Fail Muat Turun Dinamik:** Fail laporan PDF yang didownload kini secara automatik mengikut nama fail tesis asal (`Laporan_Gabungan_<Nama_Fail_Asal>.pdf`).
+
+        ---
+
+        **v1.2.0**
         * **Penapis Kata Kerja Tajuk (*Narrative Verb Filter*):**
           * Mengelakkan ralat palsu Tajuk Rajah/Jadual apabila ayat bermula dengan kata kerja (*shows, presents, summarizes, depicts*).
         * **Semakan Font Kritis:**
@@ -318,16 +462,19 @@ def generate_pdf_report(filtered_errors, total_pages):
     pdf = FPDF()
     pdf.set_auto_page_break(auto=True, margin=15)
     pdf.add_page()
+    
+    # Tajuk Utama
     pdf.set_font("Helvetica", "B", 16)
     pdf.cell(0, 10, "Laporan Semakan Format Tesis", new_x="LMARGIN", new_y="NEXT", align="C")
     
+    # Subtajuk Info
     pdf.set_font("Helvetica", "", 10)
     pdf.cell(0, 6, f"Jumlah Muka Surat Diperiksa: {total_pages}", new_x="LMARGIN", new_y="NEXT", align="C")
     pdf.ln(5)
 
     if not filtered_errors:
         pdf.set_font("Helvetica", "B", 12)
-        pdf.cell(0, 10, "Tiada isu format dikesan. Tesis mematuhi piawaian!", new_x="LMARGIN", new_y="NEXT")
+        pdf.cell(0, 10, "Tiada isu format dikesan. Tesis mematuhi piawaian!", new_x="LMARGIN", new_y="NEXT", align="C")
     else:
         pdf.set_font("Helvetica", "B", 11)
         pdf.cell(30, 8, "Muka Surat", border=1, align="C")
@@ -336,16 +483,16 @@ def generate_pdf_report(filtered_errors, total_pages):
         pdf.set_font("Helvetica", "", 9)
         for item in filtered_errors:
             page_str = f"MS {item['page']}"
-            # Gantikan aksara tak disokong untuk elak FPDF encoding crash
-            issue_str = item["msg"].replace("*", "").encode('latin-1', 'replace').decode('latin-1')
+            issue_str = item["msg"].replace("*", "")
             
-            # Gunakan multi_cell untuk elak teks terpotong
             x_start = pdf.get_x()
             y_start = pdf.get_y()
             pdf.cell(30, 8, page_str, border=1, align="C")
             pdf.set_xy(x_start + 30, y_start)
-            pdf.multi_cell(160, 8, issue_str, border=1)
+            # fpdf2 mengendalikan layout multi_cell dengan lebih baik
+            pdf.multi_cell(160, 8, issue_str, border=1, new_x="LMARGIN", new_y="NEXT")
 
+    # Dalam fpdf2, pdf.output() terus memulangkan bytearray/bytes secara terus
     return bytes(pdf.output())
 
 def generate_annotated_thesis(doc_input, all_pages_errors, ignored_set):
@@ -1281,38 +1428,42 @@ if uploaded_file is not None:
         type="primary",
         use_container_width=True,
     ):
-        with st.spinner("Menjana fail PDF akhir... Sila tunggu sebentar."):
-            st.session_state.report_pdf_bytes = generate_pdf_report(
-                detected_issues, len(doc)
-            )
-            st.session_state.annotated_pdf_bytes = generate_annotated_thesis(
+        with st.spinner("Menjana fail PDF Gabungan (Visual + Laporan)... Sila tunggu sebentar."):
+            # 1. Jana PDF berkotak merah ralat
+            annotated_pdf_bytes = generate_annotated_thesis(
                 doc, all_pages_errors_list, st.session_state.ignored_errors
             )
-        st.success("Fail PDF telah sedia untuk dimuat turun!")
-
-    if (
-        st.session_state.report_pdf_bytes is not None
-        and st.session_state.annotated_pdf_bytes is not None
-    ):
-        col_down1, col_down2 = st.columns(2)
-
-        with col_down1:
-            btn_html_1 = create_download_button_html(
-                st.session_state.report_pdf_bytes,
-                "Laporan_Semakan_Format_Tesis_USM.pdf",
-                "📥 1. Muat Turun Laporan Ringkasan (PDF)",
-                color="#2563eb",
+            
+            # 2. Hantar ke fungsi gabungan beserta nilai margin
+            st.session_state.combined_pdf_bytes = generate_combined_visual_report(
+                annotated_pdf_bytes, 
+                all_pages_errors_list, 
+                st.session_state.ignored_errors,
+                margin_left_mm=margin_left_mm,
+                margin_right_mm=margin_right_mm,
+                margin_top_mm=margin_top_mm,
+                margin_bottom_mm=margin_bottom_mm
             )
-            st.markdown(btn_html_1, unsafe_allow_html=True)
 
-        with col_down2:
-            btn_html_2 = create_download_button_html(
-                st.session_state.annotated_pdf_bytes,
-                "Tesis_Visual_Kotak_Ralat.pdf",
-                "📥 2. Muat Turun Tesis Berkotak Visual (PDF)",
-                color="#059669",
-            )
-            st.markdown(btn_html_2, unsafe_allow_html=True)
+        st.success("Fail PDF Gabungan telah sedia untuk dimuat turun!")
+
+    # =========================================================================
+    # 📥 BUTANG MUAT TURUN PDF GABUNGAN
+    # =========================================================================
+    if st.session_state.get("combined_pdf_bytes") is not None:
+        st.write("")  # Ruang kosong pemisah
+
+        # 📌 Bina nama fail dinamik mengambil nama asal fail PDF
+        file_name_out = f"Laporan_Gabungan_{uploaded_file.name}" if uploaded_file else "Laporan_Gabungan_Visual_Tesis_USM.pdf"
+
+        # Gunakan nama fail dinamik dalam fungsi HTML download button
+        btn_html_combined = create_download_button_html(
+            st.session_state.combined_pdf_bytes,
+            file_name_out,
+            "📥 Muat Turun Laporan PDF Gabungan (Visual Kiri + Isu Kanan)",
+            color="#059669",  # Warna Hijau Tema
+        )
+        st.markdown(btn_html_combined, unsafe_allow_html=True)
 
     # =========================================================================
     # 🔍 PRATONTON VISUAL PER MUKA SURAT (KOD BERSIH TANPA DUPLIKASI)
