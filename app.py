@@ -8,6 +8,15 @@ import streamlit as st
 import streamlit.components.v1 as components
 from PIL import Image, ImageDraw
 
+# 📌 INIKAN INITIALIZATION BERSAMA PERISAI SESSION STATE
+if "ignored_errors" not in st.session_state:
+    st.session_state.ignored_errors = set()
+
+# Inisialisasi wajib di awal skrip app.py (di luar mana-mana fungsi):
+for key in ["ignored_errors", "report_pdf_bytes", "annotated_pdf_bytes"]:
+    if key not in st.session_state:
+        st.session_state[key] = set() if key == "ignored_errors" else None
+
 def draw_dashed_line(draw, p1, p2, color, width=1, dash_len=8, space_len=5):
     """Fungsi pembantu melukis garisan putus-putus"""
     x1, y1 = p1
@@ -179,7 +188,15 @@ with st.sidebar:
     st.header("⚙️ Tetapan Templat Tesis")
 
     default_left, default_right, default_top, default_bottom = 40.0, 25.0, 25.0, 25.0
-    default_fonts = ["Times New Roman", "TimesNewRoman", "Arial", "Calibri", "Garamond"]
+    default_fonts = [
+    "Times New Roman",
+    "TimesNewRoman",
+    "Arial",
+    "Helvetica",
+    "TeXGyreTermes",
+    "TeXGyreTermesX",
+    "TeX Gyre Termes",
+]
 
     preset = st.selectbox(
         "Pilih Templat Universiti",
@@ -192,8 +209,10 @@ with st.sidebar:
             "Times New Roman",
             "TimesNewRoman",
             "Arial",
-            "Calibri",
-            "Garamond",
+            "Helvetica",
+            "TeXGyreTermes",
+            "TeXGyreTermesX",
+            "TeX Gyre Termes",
         ]
     else:
         default_left, default_right, default_top, default_bottom = 40.0, 25.0, 25.0, 25.0
@@ -221,6 +240,9 @@ with st.sidebar:
             "Calibri",
             "Garamond",
             "Helvetica",
+            "TeX Gyre Termes",
+            "TeXGyreTermes",
+            "TeXGyreTermesX",
         ],
         default=default_fonts,
     )
@@ -403,6 +425,10 @@ if uploaded_file is not None:
         st.session_state.annotated_pdf_bytes = None
 
     def toggle_bypass(err_id):
+        # 📌 Perisai Tambahan: Auto-create jika session_state hilang lepas clear cache
+        if "ignored_errors" not in st.session_state:
+            st.session_state.ignored_errors = set()
+
         if err_id in st.session_state.ignored_errors:
             st.session_state.ignored_errors.remove(err_id)
         else:
@@ -543,9 +569,16 @@ if uploaded_file is not None:
                                     "bbox": (wx0, wy0, wx1, wy1),
                                 })
         # -----------------------------------------------------------------
-        # 📌 SEMAKAN TAJUK BAB (PENAPIS TEKS NARATIF / FALSE POSITIVE)
+        # 📌 SEMAKAN TAJUK BAB (PERISAI PENGESANAN TOC MATS/MULTI-PAGE)
         # -----------------------------------------------------------------
-        is_toc_page = any(k in full_page_text.upper() for k in ["TABLE OF CONTENTS", "SENARAI KANDUNGAN"])
+        # 1. Semak tajuk TOC
+        has_toc_header = any(k in full_page_text.upper() for k in ["TABLE OF CONTENTS", "SENARAI KANDUNGAN"])
+        
+        # 2. Pengesan Muka Surat Sambungan TOC: Kira jumlah garisan bertitik (...) dalam halaman ini
+        dot_leaders_count = len(re.findall(r'[\.\…]{3,}', full_page_text)) + len(re.findall(r'\.\s*\.\s*\.', full_page_text))
+        
+        # Jika ada tajuk TOC ATAU ada sekurang-kurangnya 3 garisan bertitik -> INI HALAMAN TOC!
+        is_toc_page = has_toc_header or (dot_leaders_count >= 3)
 
         if not is_toc_page:
             blocks = page.get_text("blocks")
@@ -556,30 +589,22 @@ if uploaded_file is not None:
                 if clean_btext:
                     chapter_blocks.append({
                         "text": clean_btext,
-                        "x0": b[0], "y0": b[1], "x1": b[2], "y1": b[3],
+                        "x0": b[0], "y0": b[1], "x1": b[2], "y1": b[3],  # 📌 Ditambah semula untuk elak KeyError
                         "bbox": (b[0], b[1], b[2], b[3])
                     })
 
             for item in chapter_blocks:
                 text = item["text"]
-                
-                # 1. PERISAI MULTI-PAGE TOC (m/s iii - vi):
-                has_toc_dots = bool(re.search(r'\.{2,}', text)) or ". . ." in text
-                has_page_number_at_end = bool(re.search(r'\s+\d+$', text))
 
-                if has_toc_dots or (has_page_number_at_end and "CHAPTER" in text.upper()):
-                    continue
-
-                # 📌 2. PERISAI TEKS NARATIF (TAPIS AYAT SEPERTI "Chapter 5 showed that..."):
-                is_paragraph_sentence = text.endswith(".") or len(text.split()) > 10
+                # 📌 PERISAI TEKS NARATIF PERENGGAN (Contoh: "In Chapter 3, we discuss...")
+                is_paragraph_sentence = text.endswith(".") or len(text.split()) > 12
                 is_not_uppercase_heading = not re.search(r'^(CHAPTER|BAB)\s+\d+', text)
 
-                # Skip jika ia adalah perenggan ayat perbincangan biasa
                 if is_paragraph_sentence or is_not_uppercase_heading:
                     continue
 
-                # KES 1: Jika 'CHAPTER 1 INTRODUCTION' diekstrak dalam 1 baris (Mesti Uppercase & Tanpa Titik)
-                if re.search(r'^(CHAPTER|BAB)\s+(\d+|[IVXLCDM]+)\s+[A-Z0-9\s\:\-\&]{2,}$', text):
+                # KES TAJUK BAB SEBENAR (Hanya disemak di luar muka surat TOC)
+                if re.search(r'^(CHAPTER|BAB)\s+(\d+|[IVXLCDM]+)\s+[A-Z0-9\s\:\-\&\(\)]{2,}$', text):
                     page_errors.append({
                         "msg": f"Tajuk Bab: '{text}' ditulis pada baris yang sama. 'CHAPTER' dan tajuk bab (contoh: INTRODUCTION) mestilah dipisahkan dengan ENTER (baris baharu).",
                         "bbox": item["bbox"],
@@ -1385,7 +1410,15 @@ if uploaded_file is not None:
                     )
 
                     def toggle_bypass_all_page(err_ids, p_num):
-                        is_all_checked = st.session_state[f"cb_all_p{p_num+1}"]
+                        # 📌 1. Perisai KeyError: Guna .get() dengan nilai lalai False
+                        key = f"cb_all_p{p_num+1}"
+                        is_all_checked = st.session_state.get(key, False)
+
+                        # 📌 2. Perisai AttributeError: Auto-create jika hilang lepas clear cache
+                        if "ignored_errors" not in st.session_state:
+                            st.session_state.ignored_errors = set()
+
+                        # Kemaskini status bypass untuk semua isu dalam muka surat ini
                         for eid in err_ids:
                             if is_all_checked:
                                 st.session_state.ignored_errors.add(eid)
@@ -1394,6 +1427,12 @@ if uploaded_file is not None:
                                 st.session_state.ignored_errors.discard(eid)
                                 st.session_state[f"cb_{eid}"] = False
 
+                        # 📌 3. Reset cache laporan supaya PDF baharu dijana
+                        st.session_state.report_pdf_bytes = None
+                        st.session_state.annotated_pdf_bytes = None
+
+
+                    # Widget Checkbox UI
                     st.checkbox(
                         "☑️ **Abaikan Semua Isu Muka Surat Ini (Bypass All)**",
                         key=f"cb_all_p{page_num+1}",
