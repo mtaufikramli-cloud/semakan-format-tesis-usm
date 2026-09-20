@@ -17,10 +17,10 @@ TEXT_I18N = {
         "warning_header": "[AMARAN] Dikesan {count} Isu Format:",
         "no_issue": "✅ Tiada isu format dikesan pada muka surat ini.",
         "status_ok": "[OK] STATUS: SEMPURNA / TIADA ISU FORMAT",
-        "margin_top": "Teks melanggar Margin Atas {limit}mm: '{text}' (Kedudukan semasa: {val:.1f}mm dari tepi atas)",
-        "margin_bottom": "Teks melanggar Margin Bawah {limit}mm: '{text}' (Kedudukan semasa: {val:.1f}mm dari tepi bawah)",
-        "margin_left": "Teks melanggar Margin Kiri {limit}mm: '{text}' (Kedudukan semasa: {val:.1f}mm dari tepi kiri)",
-        "margin_right": "Teks melanggar Margin Kanan {limit}mm: '{text}' (Kedudukan semasa: {val:.1f}mm dari tepi kanan)",
+        "margin_top": "Teks melanggar Margin Atas {limit}mm: '{text}' (Melewati margin +{diff:.1f}mm)",
+        "margin_bottom": "Teks melanggar Margin Bawah {limit}mm: '{text}' (Melewati margin +{diff:.1f}mm)",
+        "margin_left": "Teks melanggar Margin Kiri {limit}mm: '{text}' (Melewati margin +{diff:.1f}mm)",
+        "margin_right": "Teks melanggar Margin Kanan {limit}mm: '{text}' (Melewati margin +{diff:.1f}mm)",
         "font_issue": "Jenis font '{font_name}' tidak dibenarkan pada teks: '{text}'",
         "pdf_no_issues": "Tiada isu format dikesan. Tesis mematuhi piawaian!",
         "pdf_col_page": "Muka Surat",
@@ -76,6 +76,12 @@ TEXT_I18N = {
         "v130_item1": "Sokongan Penuh Dwibahasa (i18n BM/EN): Transisi menyeluruh dari sistem teks tegar (hardcoded) ke sistem terjemahan dinamik untuk semua mesej ralat, amaran, dan antaramuka pengguna.",
         "v130_item2": "Semakan Format Komprehensif: Menambah baik pengesanan dinamik bagi margin, saiz/font, hierarki Kandungan (TOC), Abstrak, Lampiran, dan kedudukan tajuk Jadual/Rajah.",
         "v130_item3": "Pratonton & Bypass Interaktif: Penyesuaian label UI mengikut bahasa pilihan serta sokongan fungsi penyahaktifan isu (bypass) secara kelompok per muka surat.",
+        "err_image_margin_overflow": "Rajah / Imej melebihi batas margin bahagian {sides}.",
+        "err_table_margin_overflow": "Jadual melebihi batas margin bahagian {sides}.",
+        "side_left": "Kiri",
+        "side_right": "Kanan",
+        "side_top": "Atas",
+        "side_bottom": "Bawah",
 
     },
     "EN": {
@@ -83,10 +89,10 @@ TEXT_I18N = {
         "warning_header": "[WARNING] Detected {count} Format Issue(s):",
         "no_issue": "✅ No format issues detected on this page.",
         "status_ok": "[OK] STATUS: PERFECT / NO FORMAT ISSUES",
-        "margin_top": "Text violates Top Margin {limit}mm: '{text}' (Current position: {val:.1f}mm from top)",
-        "margin_bottom": "Text violates Bottom Margin {limit}mm: '{text}' (Current position: {val:.1f}mm from bottom)",
-        "margin_left": "Text violates Left Margin {limit}mm: '{text}' (Current position: {val:.1f}mm from left)",
-        "margin_right": "Text violates Right Margin {limit}mm: '{text}' (Current position: {val:.1f}mm from right)",
+        "margin_top": "Text violates Top Margin {limit}mm: '{text}' (Exceeds margin by +{diff:.1f}mm)",
+        "margin_bottom": "Text violates Bottom Margin {limit}mm: '{text}' (Exceeds margin by +{diff:.1f}mm)",
+        "margin_left": "Text violates Left Margin {limit}mm: '{text}' (Exceeds margin by +{diff:.1f}mm)",
+        "margin_right": "Text violates Right Margin {limit}mm: '{text}' (Exceeds margin by +{diff:.1f}mm)",
         "font_issue": "Font type '{font_name}' is not allowed on text: '{text}'",
         "pdf_no_issues": "No format issues detected. Thesis complies with standards!",
         "pdf_col_page": "Page Number",
@@ -142,6 +148,15 @@ TEXT_I18N = {
         "v130_item1": "Full Internationalization (i18n BM/EN): Comprehensive transition from hardcoded strings to a dynamic translation repository across all error messages, warnings, and UI elements.",
         "v130_item2": "Comprehensive Formatting Checks: Enhanced dynamic detection for margins, font sizes/types, Table of Contents (TOC) hierarchy, Abstracts, Appendices, and Table/Figure caption positions.",
         "v130_item3": "Interactive Preview & Bypass: Language-adaptive UI labels with enhanced page-wide batch issue bypassing functionality.",
+        "err_image_margin_overflow": "Figure / Image extends beyond the designated margin boundaries.",
+        "err_table_margin_overflow": "Table structure extends beyond the designated margin boundaries.",
+        "err_image_margin_overflow": "Figure / Image extends beyond the {sides} margin boundary.",
+        "err_table_margin_overflow": "Table extends beyond the {sides} margin boundary.",
+        "side_left": "Left",
+        "side_right": "Right",
+        "side_top": "Top",
+        "side_bottom": "Bottom",
+
     }
 }
 
@@ -439,7 +454,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 PASSWORD_RAHSIA = "USM2026"
-APP_VERSION = "v1.3.0"
+APP_VERSION = "v1.4.0"
 
 # Papar versi dan butang info di Sidebar
 col_v1, col_v2 = st.sidebar.columns([3, 1])
@@ -451,6 +466,13 @@ with col_v2:
     with st.popover("ℹ️ Info"):
         st.markdown(f"### 📋 Log Kemaskini ({APP_VERSION})")
         st.markdown("""
+        **v1.4.0**
+        * **Toleransi Margin Kanan Asimetrik:** Pelarasan toleransi margin kanan berasingan (sehingga 8.0 pt / ~2.82mm) bagi menghapuskan ralat palsu akibat *font padding*, perataan teks *justified*, dan titik Senarai Kandungan (TOC).
+        * **Pengesanan Toleransi Elemen Dinamik:** Pengasingan ambang toleransi mengikut belah (kiri, kanan, atas, bawah) secara khusus untuk teks, imej, jadual, dan garisan vektor.
+        * **Pencegahan Ralat Palsu Lebih Halus:** Berjaya menghapuskan amaran tidak tepat bagi lebihan teks julat 1.1mm – 2.1mm tanpa mengabaikan pelanggaran margin yang sebenar.
+
+        ---
+
         **v1.3.0**
         * **Sokongan Dwibahasa (BM/EN):** Semua mesej ralat, amaran, dan teks UI kini menyokong pertukaran bahasa secara dinamik.
         * **Semakan Format Lebih Tepat:** Penambahbaikan pengesanan automatik untuk margin, saiz font, senarai kandungan (TOC), tajuk jadual, dan rajah.
@@ -1107,6 +1129,159 @@ if uploaded_file is not None:
             top_limit_label = "25mm"
             limit_mm = 25
 
+        # =========================================================================
+        # 🟢 SEMAKAN IMEJ & JADUAL (PINTAR: ABAIKAN HEADER/FOOTER/NOMBOR M/S v1.5.0)
+        # =========================================================================
+        PT_TO_MM = 2.83465
+
+        # 🎯 TOLERANSI ASIMETRIK (Selesaikan isu ralat palsu margin kanan)
+        TOLERANCE_LEFT_PT = 1.0        # ~0.35mm (Ketat untuk margin kiri)
+        TOLERANCE_RIGHT_PT = 4.25      # ~1.50mm (Abaikan padding font 0.8mm - 1.2mm di margin kanan)
+        TOLERANCE_TOP_BOTTOM_PT = 1.5  # ~0.53mm (Margin Atas & Bawah)
+
+        # Saiz minimum Rajah/Jadual sebenar
+        MIN_DIMENSION_PT = 50.0   # ~17.6 mm
+        MIN_ELEM_AREA = 2500.0    # ~310 mm²
+
+        # -------------------------------------------------------------------------
+        # 1. Semak Imej (Images)
+        # -------------------------------------------------------------------------
+        if images_info:
+            for img in images_info:
+                img_x0, img_y0, img_x1, img_y1 = img["bbox"]
+                img_w = img_x1 - img_x0
+                img_h = img_y1 - img_y0
+                
+                # 1. Abaikan elemen saiz kecil (Nombor M/S / Ikon)
+                if img_w < MIN_DIMENSION_PT or img_h < MIN_DIMENSION_PT or (img_w * img_h) < MIN_ELEM_AREA:
+                    continue
+                    
+                # 2. 🟢 SYARAT PINTAR: Abaikan elemen yang SEPENUHNYA berada di kawasan Margin / Header / Footer
+                is_completely_in_margin = (
+                    img_x1 <= (cur_m_left + 10.0) or    # Sepenuhnya di margin kiri
+                    img_x0 >= (cur_m_right - 10.0) or   # Sepenuhnya di margin kanan
+                    img_y1 <= (cur_m_top + 10.0) or     # Sepenuhnya di margin atas (Header)
+                    img_y0 >= (cur_m_bottom - 10.0)     # Sepenuhnya di margin bawah (Footer)
+                )
+                if is_completely_in_margin:
+                    continue
+
+                overflow_sides = []
+                if img_x0 < (cur_m_left - TOLERANCE_LEFT_PT):
+                    diff_mm = (cur_m_left - img_x0) / PT_TO_MM
+                    overflow_sides.append(f"{TEXT_I18N[lang_code]['side_left']} (+{diff_mm:.1f}mm)")
+                    
+                if img_x1 > (cur_m_right + TOLERANCE_RIGHT_PT):
+                    diff_mm = (img_x1 - cur_m_right) / PT_TO_MM
+                    overflow_sides.append(f"{TEXT_I18N[lang_code]['side_right']} (+{diff_mm:.1f}mm)")
+                    
+                if img_y0 < (cur_m_top - TOLERANCE_TOP_BOTTOM_PT):
+                    diff_mm = (cur_m_top - img_y0) / PT_TO_MM
+                    overflow_sides.append(f"{TEXT_I18N[lang_code]['side_top']} (+{diff_mm:.1f}mm)")
+                    
+                if img_y1 > (cur_m_bottom + TOLERANCE_TOP_BOTTOM_PT):
+                    diff_mm = (img_y1 - cur_m_bottom) / PT_TO_MM
+                    overflow_sides.append(f"{TEXT_I18N[lang_code]['side_bottom']} (+{diff_mm:.1f}mm)")
+                
+                if overflow_sides:
+                    sides_str = ", ".join(overflow_sides)
+                    msg_img_overflow = TEXT_I18N[lang_code]["err_image_margin_overflow"].format(sides=sides_str)
+                    page_errors.append({
+                        "msg": msg_img_overflow,
+                        "bbox": img["bbox"],
+                    })
+
+        # -------------------------------------------------------------------------
+        # 2. Semak Jadual Guna Pengesan Jadual Terbina (page.find_tables)
+        # -------------------------------------------------------------------------
+        detected_table_bboxes = []
+        try:
+            tables = page.find_tables()
+            for tab in tables:
+                tb_bbox = tab.bbox
+                tb_x0, tb_y0, tb_x1, tb_y1 = tb_bbox
+                tb_w = tb_x1 - tb_x0
+                tb_h = tb_y1 - tb_y0
+
+                if tb_w < MIN_DIMENSION_PT or tb_h < MIN_DIMENSION_PT:
+                    continue
+
+                # Abaikan jika jadual berada sepenuhnya di kawasan margin/header/footer
+                if (tb_x1 <= cur_m_left + 10.0 or tb_x0 >= cur_m_right - 10.0 or 
+                    tb_y1 <= cur_m_top + 10.0 or tb_y0 >= cur_m_bottom - 10.0):
+                    continue
+
+                detected_table_bboxes.append(tb_bbox)
+                
+                overflow_sides = []
+                if tb_x0 < (cur_m_left - TOLERANCE_LEFT_PT):
+                    diff_mm = (cur_m_left - tb_x0) / PT_TO_MM
+                    overflow_sides.append(f"{TEXT_I18N[lang_code]['side_left']} (+{diff_mm:.1f}mm)")
+                    
+                if tb_x1 > (cur_m_right + TOLERANCE_RIGHT_PT):
+                    diff_mm = (tb_x1 - cur_m_right) / PT_TO_MM
+                    overflow_sides.append(f"{TEXT_I18N[lang_code]['side_right']} (+{diff_mm:.1f}mm)")
+                    
+                if tb_y0 < (cur_m_top - TOLERANCE_TOP_BOTTOM_PT):
+                    diff_mm = (cur_m_top - tb_y0) / PT_TO_MM
+                    overflow_sides.append(f"{TEXT_I18N[lang_code]['side_top']} (+{diff_mm:.1f}mm)")
+                    
+                if tb_y1 > (cur_m_bottom + TOLERANCE_TOP_BOTTOM_PT):
+                    diff_mm = (tb_y1 - cur_m_bottom) / PT_TO_MM
+                    overflow_sides.append(f"{TEXT_I18N[lang_code]['side_bottom']} (+{diff_mm:.1f}mm)")
+
+                if overflow_sides:
+                    sides_str = ", ".join(overflow_sides)
+                    msg_tbl_overflow = TEXT_I18N[lang_code]["err_table_margin_overflow"].format(sides=sides_str)
+                    page_errors.append({
+                        "msg": msg_tbl_overflow,
+                        "bbox": tb_bbox,
+                    })
+        except Exception:
+            pass
+
+        # -------------------------------------------------------------------------
+        # 3. Semak Garisan Vektor Mentah (Backup jika find_tables terlepas)
+        # -------------------------------------------------------------------------
+        if drawings and not detected_table_bboxes:
+            for d in drawings:
+                d_x0, d_y0, d_x1, d_y1 = d["rect"]
+                d_w = d_x1 - d_x0
+                d_h = d_y1 - d_y0
+                
+                if d_w < MIN_DIMENSION_PT or d_h < MIN_DIMENSION_PT or (d_w * d_h) < MIN_ELEM_AREA:
+                    continue
+
+                # Abaikan jika garisan berada sepenuhnya di kawasan margin/header/footer
+                if (d_x1 <= cur_m_left + 10.0 or d_x0 >= cur_m_right - 10.0 or 
+                    d_y1 <= cur_m_top + 10.0 or d_y0 >= cur_m_bottom - 10.0):
+                    continue
+
+                overflow_sides = []
+                if d_x0 < (cur_m_left - TOLERANCE_LEFT_PT):
+                    diff_mm = (cur_m_left - d_x0) / PT_TO_MM
+                    overflow_sides.append(f"{TEXT_I18N[lang_code]['side_left']} (+{diff_mm:.1f}mm)")
+                    
+                if d_x1 > (cur_m_right + TOLERANCE_RIGHT_PT):
+                    diff_mm = (d_x1 - cur_m_right) / PT_TO_MM
+                    overflow_sides.append(f"{TEXT_I18N[lang_code]['side_right']} (+{diff_mm:.1f}mm)")
+                    
+                if d_y0 < (cur_m_top - TOLERANCE_TOP_BOTTOM_PT):
+                    diff_mm = (cur_m_top - d_y0) / PT_TO_MM
+                    overflow_sides.append(f"{TEXT_I18N[lang_code]['side_top']} (+{diff_mm:.1f}mm)")
+                    
+                if d_y1 > (cur_m_bottom + TOLERANCE_TOP_BOTTOM_PT):
+                    diff_mm = (d_y1 - cur_m_bottom) / PT_TO_MM
+                    overflow_sides.append(f"{TEXT_I18N[lang_code]['side_bottom']} (+{diff_mm:.1f}mm)")
+
+                if overflow_sides:
+                    sides_str = ", ".join(overflow_sides)
+                    msg_tbl_overflow = TEXT_I18N[lang_code]["err_table_margin_overflow"].format(sides=sides_str)
+                    page_errors.append({
+                        "msg": msg_tbl_overflow,
+                        "bbox": d["rect"],
+                    })
+
         # -----------------------------------------------------------------
         # PASS 1: PRE-SCANNING NOMBOR MUKA SURAT (LANDSCAPE LEFT SHIELD)
         # -----------------------------------------------------------------
@@ -1190,11 +1365,14 @@ if uploaded_file is not None:
             chapter_blocks = []
 
             for b in blocks:
-                clean_btext = " ".join(b[4].split()).strip()
+                raw_btext = b[4].strip() if len(b) >= 5 else ""
+                clean_btext = " ".join(raw_btext.split()).strip()
+                
                 if clean_btext:
                     chapter_blocks.append({
                         "text": clean_btext,
-                        "x0": b[0], "y0": b[1], "x1": b[2], "y1": b[3],  # 📌 Ditambah semula untuk elak KeyError
+                        "has_newline": "\n" in raw_btext,  # 🟢 KUNCI FIX: Deteksi apakah ada ENTER (\n) di dalam teks mentah
+                        "x0": b[0], "y0": b[1], "x1": b[2], "y1": b[3],
                         "bbox": (b[0], b[1], b[2], b[3])
                     })
 
@@ -1210,6 +1388,11 @@ if uploaded_file is not None:
 
                 # KES TAJUK BAB SEBENAR (Hanya disemak di luar muka surat TOC)
                 if re.search(r'^(CHAPTER|BAB)\s+(\d+|[IVXLCDM]+)\s+[A-Z0-9\s\:\-\&\(\)]{2,}$', text):
+                    
+                    # 🟢 JIKA ADA ENTER (\n), BERARTI SUDAH DIPISAH BARIS! ABAIKAN ERROR!
+                    if item["has_newline"]:
+                        continue
+
                     # 1. Bina mesej ralat mengikut bahasa pilihan (BM/EN)
                     msg_chapter = TEXT_I18N[lang_code]["chapter_title_same_line"].format(text=text)
 
@@ -1225,8 +1408,9 @@ if uploaded_file is not None:
                         if item == other_item:
                             continue
                         
-                        same_y_level = abs(item["y0"] - other_item["y0"]) < 15
-                        is_on_right = other_item["x0"] >= item["x1"] - 10
+                        # 🟢 KETATKAN JULAT: Hanya anggap sebaris jika beza Y0 kurang daripada 8pt
+                        same_y_level = abs(item["y0"] - other_item["y0"]) < 8
+                        is_on_right = other_item["x0"] >= (item["x1"] - 5)
 
                         if same_y_level and is_on_right:
                             clean_title_snippet = other_item["text"][:25]
@@ -1254,62 +1438,213 @@ if uploaded_file is not None:
         is_title_or_cover = is_page_1_or_2 and (has_usm_keyword or has_fulfilment or page_num == 0)
 
         # -----------------------------------------------------------------
-        # 📌 SEMAKAN MARGIN (DIBALUT: DIABAIKAN JIKA MUKA SURAT TAJUK)
+        # 📌 PEMURNIAN: DETEKSI MUKA SURAT TAJUK / KULIT (TITLE PAGE)
+        # -----------------------------------------------------------------
+        is_page_1_or_2 = page_num in [0, 1]
+        has_usm_keyword = "UNIVERSITI SAINS MALAYSIA" in full_page_text.upper()
+        has_fulfilment = ("THESIS SUBMITTED IN FULFILMENT" in full_page_text.upper() or 
+                          "TESIS DISERAHKAN BAGI MEMENUHI" in full_page_text.upper())
+        
+        is_title_or_cover = is_page_1_or_2 and (has_usm_keyword or has_fulfilment or page_num == 0)
+
+        # -----------------------------------------------------------------
+        # 📌 SEMAKAN MARGIN (PER BARIS: HIGHLIGHT PENUH + RINGKASAN UI)
         # -----------------------------------------------------------------
         if not is_title_or_cover:
             top_margin_violations = []
+            left_violations = []
+            right_violations = []
 
-            # 1. SEMAK SEMUA BLOK TEKS
-            for block in page.get_text("blocks"):
-                bx0, by0, bx1, by1, btext = block[0], block[1], block[2], block[3], block[4]
-                block_rect = fitz.Rect(bx0, by0, bx1, by1)
+            PT_TO_MM = 2.83465
+            
+            # 🎯 TETAPAN TOLERANSI (DALAM POINT)
+            TOLERANCE_TOP_PT = 2.0     # ~0.7mm
+            TOLERANCE_LEFT_PT = 2.0    # ~0.7mm
+            TOLERANCE_RIGHT_PT = 8.0   # ~2.1mm (Ubah dari 3.0 ke 6.0 pt supaya telan lebihan 1.1mm belah kanan!)
 
-                is_pagenum_block = any(block_rect.intersects(p_rect) for p_rect in pagenum_rects)
+            limit_mm = int(cur_m_top / PT_TO_MM)
+            limit_left_mm = int(cur_m_left / PT_TO_MM)
 
-                clean_btext = btext.strip()
-                is_pure_num = bool(re.search(r'^\s*\d{1,4}\s*$', clean_btext)) or is_roman_numeral(re.sub(r"[^a-zA-Z0-9]", "", clean_btext.lower()))
-                in_margin_zone = (bx0 < 70 or bx1 > (rect.width - 70) or by0 < 70 or by0 > (rect.height - 70))
+            # Pelarasan automatik koordinat Margin Kanan
+            if cur_m_right > (rect.width / 2):
+                right_limit_pt = cur_m_right
+                limit_right_mm = int((rect.width - cur_m_right) / PT_TO_MM)
+            else:
+                right_limit_pt = rect.width - cur_m_right
+                limit_right_mm = int(cur_m_right / PT_TO_MM)
 
-                if is_pagenum_block or (is_pure_num and in_margin_zone) or not clean_btext:
+            # 1. BACA TEKS PER BARIS (DICTIONARY LEVEL)
+            text_dict = page.get_text("dict")
+
+            for block in text_dict.get("blocks", []):
+                if "lines" not in block:
                     continue
 
-                # Semak jika melanggar garisan margin atas
-                if by0 < (cur_m_top - 2.0):
-                    actual_y_mm = round(by0 / 2.83465, 1)
-                    clean_snippet = " ".join(btext.split())[:35]
+                for line in block["lines"]:
+                    lx0, ly0, lx1, ly1 = line["bbox"]
                     
-                    top_margin_violations.append({
-                        "y0": by0,
-                        "msg": TEXT_I18N[lang_code]["margin_top"].format(
-                            limit=limit_mm, 
-                            text=clean_snippet, 
-                            val=actual_y_mm
-                        ),
-                        "bbox": (bx0, by0, bx1, by1),
+                    # Gabungkan teks dalam satu baris
+                    line_text = "".join([span["text"] for span in line.get("spans", [])]).strip()
+                    if not line_text:
+                        continue
+
+                    line_rect = fitz.Rect(lx0, ly0, lx1, ly1)
+
+                    # Abaikan nombor muka surat & kawasan header/footer
+                    is_pagenum = any(line_rect.intersects(p_rect) for p_rect in pagenum_rects)
+                    clean_text = line_text.strip()
+                    is_pure_num = bool(re.search(r'^\s*\d{1,4}\s*$', clean_text)) or is_roman_numeral(re.sub(r"[^a-zA-Z0-9]", "", clean_text.lower()))
+                    in_margin_zone = (lx0 < 70 or lx1 > (rect.width - 70) or ly0 < 70 or ly0 > (rect.height - 70))
+
+                    if is_pagenum or (is_pure_num and in_margin_zone):
+                        continue
+
+                    clean_snippet = " ".join(line_text.split())[:35] + ("..." if len(line_text) > 35 else "")
+
+                    # 🟢 A. SEMAK MARGIN ATAS
+                    if ly0 < (cur_m_top - TOLERANCE_TOP_PT):
+                        diff_mm = (cur_m_top - ly0) / PT_TO_MM
+                        top_margin_violations.append({
+                            "y0": ly0,
+                            "msg": TEXT_I18N[lang_code]["margin_top"].format(
+                                limit=limit_mm, 
+                                text=clean_snippet, 
+                                diff=diff_mm
+                            ),
+                            "bbox": (lx0, ly0, lx1, ly1),
+                        })
+
+                    # 🟢 B. KUMPUL PELANGGARAN MARGIN KIRI (PER BARIS)
+                    if lx0 < (cur_m_left - TOLERANCE_LEFT_PT):
+                        diff_left_mm = round((cur_m_left - lx0) / PT_TO_MM, 1)
+                        left_violations.append({
+                            "diff": diff_left_mm,
+                            "bbox": (lx0, ly0, lx1, ly1)
+                        })
+
+                    # 🟢 C. KUMPUL PELANGGARAN MARGIN KANAN (PER BARIS)
+                    # 🎯 DIBETULKAN: Gunakan TOLERANCE_RIGHT_PT (6.0 pt)
+                    if lx1 > (right_limit_pt + TOLERANCE_RIGHT_PT):
+                        if ly0 >= 50 and ly1 <= (rect.height - 50): # Abaikan header/footer
+                            diff_right_mm = round((lx1 - right_limit_pt) / PT_TO_MM, 1)
+                            right_violations.append({
+                                "diff": diff_right_mm,
+                                "bbox": (lx0, ly0, lx1, ly1)
+                            })
+
+            # -----------------------------------------------------------------
+            # 🟢 BINA RINGKASAN AMARAN (1 AYAT RINGKAS + HIGHLIGHT SEMUA BARIS)
+            # -----------------------------------------------------------------
+
+            # A. Ringkasan Margin Kiri
+            if left_violations:
+                min_diff = min(v["diff"] for v in left_violations)
+                max_diff = max(v["diff"] for v in left_violations)
+                count = len(left_violations)
+                
+                diff_str = f"{min_diff}mm" if min_diff == max_diff else f"{min_diff}mm - {max_diff}mm"
+                msg_left_summary = f"Margin Kiri {limit_left_mm}mm: Dikesan {count} baris teks melanggar margin ({diff_str} terkeluar)."
+                
+                for v in left_violations:
+                    page_errors.append({
+                        "msg": msg_left_summary,
+                        "bbox": v["bbox"]
                     })
 
-            # 2. SEMAK GARISAN JADUAL / VECTOR DRAWINGS
+            # B. Ringkasan Margin Kanan
+            if right_violations:
+                min_diff = min(v["diff"] for v in right_violations)
+                max_diff = max(v["diff"] for v in right_violations)
+                count = len(right_violations)
+                
+                diff_str = f"{min_diff}mm" if min_diff == max_diff else f"{min_diff}mm - {max_diff}mm"
+                msg_right_summary = f"Margin Kanan {limit_right_mm}mm: Dikesan {count} baris teks melanggar margin ({diff_str} terkeluar)."
+                
+                for v in right_violations:
+                    page_errors.append({
+                        "msg": msg_right_summary,
+                        "bbox": v["bbox"]
+                    })
+
+            # 2. SEMAK GARISAN JADUAL / VECTOR DRAWINGS / SHAPE
             for path in page.get_drawings():
                 d_rect = path.get("rect")
                 if d_rect:
                     dy0 = d_rect[1]
-                    if dy0 < (cur_m_top - 2.0) and dy0 > 30.0:
-                        # 1. Kira nilai kedudukan dalam mm
-                        actual_y_mm = round(dy0 / 2.83465, 1)
-
-                        # 2. Bina mesej amaran berdasarkan bahasa pilihan (BM/EN)
-                        msg_table_top = TEXT_I18N[lang_code]["table_line_margin_top"].format(
-                            limit=40, 
-                            val=actual_y_mm
+                    if dy0 < (cur_m_top - 2.0) and dy0 > 85.0:
+                        actual_y_mm = round(dy0 / PT_TO_MM, 1)
+                        msg_table_top = (
+                            f"Bingkai Objek / Shape / Jadual melanggar Margin Atas {limit_mm}mm "
+                            f"({actual_y_mm:.1f}mm dikesan)."
                         )
-
                         top_margin_violations.append({
                             "y0": dy0,
                             "msg": msg_table_top,
                             "bbox": d_rect,
                         })
 
-            # 3. LAPORKAN ELEMEN PALING ATAS (Y0 PALING KECIL)
+            # 3. LAPORKAN ELEMEN PALING ATAS
+            if top_margin_violations:
+                top_margin_violations.sort(key=lambda x: x["y0"])
+                highest_violation = top_margin_violations[0]
+                
+                page_errors.append({
+                    "msg": highest_violation["msg"],
+                    "bbox": highest_violation["bbox"],
+                })
+
+            # -----------------------------------------------------------------
+            # 🟢 BINA RINGKASAN AMARAN (1 AYAT RINGKAS + HIGHLIGHT SEMUA BARIS)
+            # -----------------------------------------------------------------
+
+            # A. Ringkasan Margin Kiri
+            if left_violations:
+                min_diff = min(v["diff"] for v in left_violations)
+                max_diff = max(v["diff"] for v in left_violations)
+                count = len(left_violations)
+                
+                diff_str = f"{min_diff}mm" if min_diff == max_diff else f"{min_diff}mm - {max_diff}mm"
+                msg_left_summary = f"Margin Kiri {limit_left_mm}mm: Dikesan {count} baris teks melanggar margin ({diff_str} terkeluar)."
+                
+                for v in left_violations:
+                    page_errors.append({
+                        "msg": msg_left_summary,
+                        "bbox": v["bbox"]
+                    })
+
+            # B. Ringkasan Margin Kanan
+            if right_violations:
+                min_diff = min(v["diff"] for v in right_violations)
+                max_diff = max(v["diff"] for v in right_violations)
+                count = len(right_violations)
+                
+                diff_str = f"{min_diff}mm" if min_diff == max_diff else f"{min_diff}mm - {max_diff}mm"
+                msg_right_summary = f"Margin Kanan {limit_right_mm}mm: Dikesan {count} baris teks melanggar margin ({diff_str} terkeluar)."
+                
+                for v in right_violations:
+                    page_errors.append({
+                        "msg": msg_right_summary,
+                        "bbox": v["bbox"]
+                    })
+
+            # 2. SEMAK GARISAN JADUAL / VECTOR DRAWINGS / SHAPE
+            for path in page.get_drawings():
+                d_rect = path.get("rect")
+                if d_rect:
+                    dy0 = d_rect[1]
+                    if dy0 < (cur_m_top - 2.0) and dy0 > 85.0:
+                        actual_y_mm = round(dy0 / PT_TO_MM, 1)
+                        msg_table_top = (
+                            f"Bingkai Objek / Shape / Jadual melanggar Margin Atas {limit_mm}mm "
+                            f"({actual_y_mm:.1f}mm dikesan)."
+                        )
+                        top_margin_violations.append({
+                            "y0": dy0,
+                            "msg": msg_table_top,
+                            "bbox": d_rect,
+                        })
+
+            # 3. LAPORKAN ELEMEN PALING ATAS
             if top_margin_violations:
                 top_margin_violations.sort(key=lambda x: x["y0"])
                 highest_violation = top_margin_violations[0]
@@ -1868,9 +2203,8 @@ if uploaded_file is not None:
         # =========================================================================
         # BAHAGIAN 3/3: SEMAKAN NOMBOR MUKA SURAT & ANTARAMUKA USER (UI STREAMLIT)
         # =========================================================================
-        # -----------------------------------------------------------------
-        # SEMAKAN KEHADIRAN NOMBOR MUKA SURAT
-        # -----------------------------------------------------------------
+        
+        # 1. Semak jika muka surat ini berada dalam bahagian Appendix
         if not in_appendix_section:
             lines = [line.strip().upper() for line in full_page_text.split("\n") if line.strip()]
             for line in lines:
@@ -1894,7 +2228,7 @@ if uploaded_file is not None:
             kw in full_page_text.upper() for kw in declaration_keywords
         )
 
-        # 1. Semak ralat jika nombor M/S terpapar pada Title Page (m/s 1)
+        # Semak ralat jika nombor M/S terpapar pada Title Page (m/s 1)
         if page_num == 0 and has_pagenum_found:
             msg_title_forbidden = TEXT_I18N[lang_code]["title_page_pagenum_forbidden"]
             page_errors.append({
@@ -1902,7 +2236,7 @@ if uploaded_file is not None:
                 "bbox": None,
             })
 
-        # 2. Semak ralat jika nombor M/S terpapar pada Declaration Page (m/s 2)
+        # Semak ralat jika nombor M/S terpapar pada Declaration Page (m/s 2)
         if (is_declaration_page or page_num == 1) and has_pagenum_found:
             msg_decl_forbidden = TEXT_I18N[lang_code]["declaration_pagenum_forbidden"]
             page_errors.append({
@@ -1913,18 +2247,6 @@ if uploaded_file is not None:
         # -----------------------------------------------------------------
         # SEMAKAN KEHADIRAN NOMBOR MUKA SURAT (MUKA SURAT 3 DAN KE ATAS)
         # -----------------------------------------------------------------
-        if not in_appendix_section:
-            lines = [line.strip().upper() for line in full_page_text.split("\n") if line.strip()]
-            for line in lines:
-                if (line.startswith("APPENDIX") or line.startswith("LAMPIRAN")) and len(line) < 60:
-                    in_appendix_section = True
-                    break
-
-        is_other_exempted = any(
-            k in page_text_lower for k in ["list of publications", "publication", "penerbitan"]
-        )
-
-        # Halaman 1 (Title) dan Halaman 2 (Declaration) dikecualikan daripada amaran tiada nombor
         skip_pagenum_check = (
             page_num < 2 
             or (in_appendix_section and abaikan_pagenum_appendix) 
@@ -1932,14 +2254,11 @@ if uploaded_file is not None:
         )
 
         if not skip_pagenum_check and not has_pagenum_found:
-            # 1. Dapatkan label lokasi mengikut orientasi dan bahasa
             loc_label = (
                 TEXT_I18N[lang_code]["loc_landscape"] 
                 if is_landscape 
                 else TEXT_I18N[lang_code]["loc_portrait"]
             )
-
-            # 2. Bina mesej ralat dinamik
             msg_missing_num = TEXT_I18N[lang_code]["missing_page_num"].format(location=loc_label)
 
             page_errors.append({
@@ -1947,18 +2266,22 @@ if uploaded_file is not None:
                 "bbox": None,
             })
 
-        # Nyah-duplikasi ralat mengikut mesej (message deduplication)
+        # =========================================================================
+        # 🟢 SIMPAN DATA RALAT (SIMPAN MESEJ UNIK SAHAJA KE DALAM LIST UTAMA)
+        # =========================================================================
         unique_page_errors = []
         seen_msgs = set()
+        
+        # Tapis supaya hanya mesej unik disimpan untuk paparan UI & Laporan
         for e in page_errors:
             if e["msg"] not in seen_msgs:
                 seen_msgs.add(e["msg"])
                 unique_page_errors.append(e)
 
-        # Simpan ralat mengikut muka surat
+        # 📌 SIMPAN UNIK LIST INI (Bukan page_errors mentah)
         all_pages_errors_list.append(unique_page_errors)
 
-        # Kumpul ralat aktif untuk laporan (Saring yang tidak di-ignore/bypass)
+        # Kumpul ralat aktif untuk laporan
         for i, err in enumerate(unique_page_errors):
             err_id = f"p{page_num+1}_{i}"
             if err_id not in st.session_state.ignored_errors:
@@ -1966,27 +2289,18 @@ if uploaded_file is not None:
 
 
     # =========================================================================
-    # 📄 SEKSYEN JANA & MUAT TURUN DOKUMEN
+    # 📄 SEKSYEN JANA & MUAT TURUN DOKUMEN (DI LUAR GELUNG ANALISIS)
     # =========================================================================
     st.markdown("---")
     st.subheader("📄 Jana & Muat Turun Dokumen Akhir")
 
-    st.write(
-        f"Jumlah isu aktif yang disahkan untuk dilaporkan: **{len(detected_issues)} isu**"
-    )
+    st.write(f"Jumlah isu aktif yang disahkan untuk dilaporkan: **{len(detected_issues)} isu**")
 
-    if st.button(
-        "⚙️ Jana Dokumen PDF Akhir",
-        type="primary",
-        use_container_width=True,
-    ):
+    if st.button("⚙️ Jana Dokumen PDF Akhir", type="primary", use_container_width=True):
         with st.spinner("Menjana fail PDF Gabungan (Visual + Laporan)... Sila tunggu sebentar."):
-            # 1. Jana PDF berkotak merah ralat
             annotated_pdf_bytes = generate_annotated_thesis(
                 doc, all_pages_errors_list, st.session_state.ignored_errors
             )
-            
-            # 2. Hantar ke fungsi gabungan beserta nilai margin
             st.session_state.combined_pdf_bytes = generate_combined_visual_report(
                 annotated_pdf_bytes, 
                 all_pages_errors_list, 
@@ -1996,51 +2310,52 @@ if uploaded_file is not None:
                 margin_top_mm=margin_top_mm,
                 margin_bottom_mm=margin_bottom_mm
             )
-
         st.success("Fail PDF Gabungan telah sedia untuk dimuat turun!")
 
-    # =========================================================================
-    # 📥 BUTANG MUAT TURUN PDF GABUNGAN
-    # =========================================================================
     if st.session_state.get("combined_pdf_bytes") is not None:
-        st.write("")  # Ruang kosong pemisah
-
-        # 📌 Bina nama fail dinamik mengambil nama asal fail PDF
+        st.write("")
         file_name_out = f"Laporan_Gabungan_{uploaded_file.name}" if uploaded_file else "Laporan_Gabungan_Visual_Tesis_USM.pdf"
-
-        # Gunakan nama fail dinamik dalam fungsi HTML download button
         btn_html_combined = create_download_button_html(
             st.session_state.combined_pdf_bytes,
             file_name_out,
             "📥 Muat Turun Laporan PDF Gabungan (Visual Kiri + Isu Kanan)",
-            color="#059669",  # Warna Hijau Tema
+            color="#059669",
         )
         st.markdown(btn_html_combined, unsafe_allow_html=True)
 
     # =========================================================================
-    # 🔍 PRATONTON VISUAL PER MUKA SURAT (KOD BERSIH TANPA DUPLIKASI)
+    # 🔍 PRATONTON VISUAL PER MUKA SURAT (GAYA UI PETAK KELABU KEMAS)
     # =========================================================================
     st.markdown("---")
     st.subheader(TEXT_I18N[lang_code]["ui_review_preview_title"])
 
     for page_num in range(len(doc)):
-        unique_page_errors = all_pages_errors_list[page_num]
+        # 1. Ambil SEMUA ralat mentah (untuk lukis petak merah pada gambar PDF)
+        raw_page_errors = all_pages_errors_list[page_num] if page_num < len(all_pages_errors_list) else []
+        
+        # 2. Tapis ralat UNIK sahaja untuk paparan teks di sebelah kanan (One-Off)
+        unique_page_errors = []
+        seen_msgs = set()
+        for e in raw_page_errors:
+            if e["msg"] not in seen_msgs:
+                seen_msgs.add(e["msg"])
+                unique_page_errors.append(e)
+
         is_landscape = doc[page_num].rect.width > doc[page_num].rect.height
         tag_landscape = " [Landscape]" if is_landscape else ""
 
-        # 1. Kira bilangan isu yang belum di-bypass
+        # Kira isu aktif
         active_errors_count = sum(
             1 for i, _ in enumerate(unique_page_errors)
             if f"p{page_num+1}_{i}" not in st.session_state.ignored_errors
         )
 
-        # 2. Set status label mengikut jumlah isu aktif (Dinamik)
-        if active_errors_count > 0:
-            status_str = TEXT_I18N[lang_code]["ui_issues_found"].format(count=active_errors_count)
-        else:
-            status_str = TEXT_I18N[lang_code]["ui_status_ok"]
+        status_str = (
+            TEXT_I18N[lang_code]["ui_issues_found"].format(count=active_errors_count)
+            if active_errors_count > 0
+            else TEXT_I18N[lang_code]["ui_status_ok"]
+        )
 
-        # 3. Label Expander Dinamik
         expander_title = TEXT_I18N[lang_code]["ui_page_label"].format(
             num=page_num + 1,
             tag=tag_landscape,
@@ -2051,51 +2366,36 @@ if uploaded_file is not None:
             col_img, col_details = st.columns([1, 1])
             doc_page = doc[page_num]
 
-            # Lukis kotak merah ralat
-            for i, err in enumerate(unique_page_errors):
-                err_id = f"p{page_num+1}_{i}"
-                if (
-                    err.get("bbox")
-                    and err_id not in st.session_state.ignored_errors
-                ):
-                    doc_page.draw_rect(
-                        err["bbox"], color=(1, 0, 0), width=1.5
-                    )
+            # 🟢 KIRI: Lukis SEMUA petak merah pada visual PDF (11 baris = 11 petak)
+            for err in raw_page_errors:
+                if err.get("bbox"):
+                    doc_page.draw_rect(err["bbox"], color=(1, 0, 0), width=1.5)
 
-            pix = doc_page.get_pixmap(dpi=120)
-            img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
-
-            # Kolum Kiri: Pratonton Gambar (Dengan Garisan Margin Samar)
+            # Kolum Kiri: Gambar Visual PDF
             with col_img:
                 img_with_guides = add_margin_overlay(doc_page, dpi=120, is_landscape=is_landscape)
-                
                 preview_caption = TEXT_I18N[lang_code]["ui_preview_caption"].format(num=page_num + 1)
-                
-                st.image(
-                    img_with_guides,
-                    caption=preview_caption,
-                    use_container_width=True,
-                )
+                st.image(img_with_guides, caption=preview_caption, use_container_width=True)
 
-            # Kolum Kanan: Senarai Isu & Master Checkbox
+            # 🟢 KANAN: Paparan Petak Kelabu Teks Input & Master Checkbox
             with col_details:
+                page_err_ids = []
+
                 if not unique_page_errors:
                     st.success(TEXT_I18N[lang_code]["ui_no_errors_page"])
                 else:
-                    st.write(TEXT_I18N[lang_code]["ui_detected_issues_title"])
+                    st.markdown("### Senarai Isu Dikesan:")
 
-                    page_err_ids = []
                     for i, err in enumerate(unique_page_errors):
                         err_id = f"p{page_num+1}_{i}"
                         page_err_ids.append(err_id)
                         is_ignored = err_id in st.session_state.ignored_errors
 
-                        # 🟢 SUSUN SEBELAH-MENYEBELAH (RAPAT & KEMAS)
-                        c_check, c_text = st.columns([0.25, 0.75])
+                        c_check, c_text = st.columns([0.30, 0.70])
                         
                         with c_check:
                             st.checkbox(
-                                TEXT_I18N[lang_code]["ui_bypass_issue"].format(num=i+1),
+                                f"Abaikan ({i+1})" if len(unique_page_errors) > 1 else "Abaikan",
                                 key=f"cb_{err_id}",
                                 value=is_ignored,
                                 on_change=toggle_bypass,
@@ -2103,9 +2403,9 @@ if uploaded_file is not None:
                             )
 
                         with c_text:
-                            # text_input yang read-only: Boleh select, copy, dan jarak sangat rapat
+                            # Kotak input kelabu lembut (disabled) seperti dalam gambar anda
                             st.text_input(
-                                TEXT_I18N[lang_code]["ui_issue_label"].format(num=i+1),
+                                f"Isu_{err_id}",
                                 value=err['msg'],
                                 key=f"txt_{err_id}",
                                 label_visibility="collapsed",
@@ -2114,6 +2414,8 @@ if uploaded_file is not None:
 
                     st.divider()
 
+                # 🟢 2. SEMAKAN BOLEH DILAKUKAN DENGAN SELAMAT
+                if page_err_ids:
                     all_bypassed = all(
                         eid in st.session_state.ignored_errors for eid in page_err_ids
                     )
