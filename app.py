@@ -1,4 +1,5 @@
 import base64
+import hashlib
 import io
 import re
 from fpdf import FPDF
@@ -197,36 +198,95 @@ def generate_combined_visual_report(annotated_pdf_bytes, all_pages_errors_list, 
         # -----------------------------------------------------------------
         # 📌 1. TEKAP TESIS (LENGKAP DENGAN KOTAK MERAH ERROR)
         # -----------------------------------------------------------------
-        new_page.show_pdf_page(thesis_rect, annotated_doc, p_num)
+        source_page = annotated_doc[p_num]
+        source_rect = source_page.rect
+        is_landscape = source_rect.width > source_rect.height
+
+        # Kekalkan nisbah halaman dan pusatkan dalam kanvas kiri.
+        page_scale = min(
+            thesis_rect.width / source_rect.width,
+            thesis_rect.height / source_rect.height,
+        )
+        rendered_width = source_rect.width * page_scale
+        rendered_height = source_rect.height * page_scale
+
+        rendered_x0 = thesis_rect.x0 + (
+            thesis_rect.width - rendered_width
+        ) / 2
+        rendered_y0 = thesis_rect.y0 + (
+            thesis_rect.height - rendered_height
+        ) / 2
+
+        rendered_rect = fitz.Rect(
+            rendered_x0,
+            rendered_y0,
+            rendered_x0 + rendered_width,
+            rendered_y0 + rendered_height,
+        )
+
+        new_page.show_pdf_page(
+            rendered_rect,
+            annotated_doc,
+            p_num,
+            keep_proportion=True,
+        )
 
         # -----------------------------------------------------------------
         # 📌 2. LUKIS GARISAN MARGIN PUTUS-PUTUS MERAH LEMBUT (FAINT RED)
         # -----------------------------------------------------------------
-        scale_x = thesis_rect.width / 595.28
-        scale_y = thesis_rect.height / 841.89
+        page_margins_mm = get_page_margins_mm(
+            is_landscape=is_landscape,
+            left_mm=margin_left_mm,
+            right_mm=margin_right_mm,
+            top_mm=margin_top_mm,
+            bottom_mm=margin_bottom_mm,
+        )
 
-        m_left_pt = margin_left_mm * 2.83465
-        m_right_pt = (210 - margin_right_mm) * 2.83465
-        m_top_pt = margin_top_mm * 2.83465
-        m_bottom_pt = (297 - margin_bottom_mm) * 2.83465
+        # Tukarkan mm kepada point pada halaman laporan yang dikecilkan.
+        scaled_pt_per_mm = (72 / 25.4) * page_scale
 
-        x_left = thesis_rect.x0 + (m_left_pt * scale_x)
-        x_right = thesis_rect.x0 + (m_right_pt * scale_x)
-        y_top = thesis_rect.y0 + (m_top_pt * scale_y)
-        y_bottom = thesis_rect.y0 + (m_bottom_pt * scale_y)
+        x_left = rendered_rect.x0 + (
+            page_margins_mm["left"] * scaled_pt_per_mm
+        )
+        x_right = rendered_rect.x1 - (
+            page_margins_mm["right"] * scaled_pt_per_mm
+        )
+        y_top = rendered_rect.y0 + (
+            page_margins_mm["top"] * scaled_pt_per_mm
+        )
+        y_bottom = rendered_rect.y1 - (
+            page_margins_mm["bottom"] * scaled_pt_per_mm
+        )
 
         shape_margin = new_page.new_shape()
-        shape_margin.draw_line(fitz.Point(x_left, thesis_rect.y0), fitz.Point(x_left, thesis_rect.y1))
-        shape_margin.draw_line(fitz.Point(x_right, thesis_rect.y0), fitz.Point(x_right, thesis_rect.y1))
-        shape_margin.draw_line(fitz.Point(thesis_rect.x0, y_top), fitz.Point(thesis_rect.x1, y_top))
-        shape_margin.draw_line(fitz.Point(thesis_rect.x0, y_bottom), fitz.Point(thesis_rect.x1, y_bottom))
-        
-        shape_margin.finish(color=(0.95, 0.45, 0.45), dashes="[3 3]", stroke_opacity=0.55, width=0.6)
+        shape_margin.draw_line(
+            fitz.Point(x_left, rendered_rect.y0),
+            fitz.Point(x_left, rendered_rect.y1),
+        )
+        shape_margin.draw_line(
+            fitz.Point(x_right, rendered_rect.y0),
+            fitz.Point(x_right, rendered_rect.y1),
+        )
+        shape_margin.draw_line(
+            fitz.Point(rendered_rect.x0, y_top),
+            fitz.Point(rendered_rect.x1, y_top),
+        )
+        shape_margin.draw_line(
+            fitz.Point(rendered_rect.x0, y_bottom),
+            fitz.Point(rendered_rect.x1, y_bottom),
+        )
+
+        shape_margin.finish(
+            color=(0.95, 0.45, 0.45),
+            dashes="[3 3]",
+            stroke_opacity=0.55,
+            width=0.6,
+        )
         shape_margin.commit()
 
         # Bingkai kelabu nipis luar kertas
         shape_border = new_page.new_shape()
-        shape_border.draw_rect(thesis_rect)
+        shape_border.draw_rect(rendered_rect)
         shape_border.finish(color=(0.8, 0.8, 0.8), width=0.5)
         shape_border.commit()
 
@@ -243,8 +303,8 @@ def generate_combined_visual_report(annotated_pdf_bytes, all_pages_errors_list, 
         # -----------------------------------------------------------------
         raw_issues = all_pages_errors_list[p_num] if p_num < len(all_pages_errors_list) else []
         active_issues = [
-            iss for iss in raw_issues 
-            if (iss.get("id") or f"{p_num}_{iss.get('msg', '')}") not in ignored_errors
+            iss for i, iss in enumerate(raw_issues)
+            if f"p{p_num+1}_{i}" not in ignored_errors
         ]
 
         # 1. Bina tajuk laporan muka surat mengikut bahasa pilihan (BM/EN)
@@ -347,7 +407,33 @@ def draw_dashed_line(draw, p1, p2, color, width=1, dash_len=8, space_len=5):
             draw.line([(x1, y), (x1, min(y + dash_len, y2))], fill=color, width=width)
             y += dash_len + space_len
 
-def add_margin_overlay(doc_page, dpi=120, is_landscape=False):
+def get_page_margins_mm(
+    is_landscape,
+    left_mm,
+    right_mm,
+    top_mm,
+    bottom_mm,
+):
+    """Satu pemetaan margin untuk semakan, pratonton dan laporan."""
+    return {
+        "left": float(top_mm if is_landscape else left_mm),
+        "right": float(right_mm),
+        "top": float(left_mm if is_landscape else top_mm),
+        "bottom": float(bottom_mm),
+    }
+
+
+def add_margin_overlay(
+    doc_page,
+    dpi=120,
+    is_landscape=False,
+    *,
+    margin_left_mm,
+    margin_right_mm,
+    margin_top_mm,
+    margin_bottom_mm,
+):
+
     # 1. Hasilkan imej asal & tukar ke mod RGBA
     pix = doc_page.get_pixmap(dpi=dpi)
     base_img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples).convert("RGBA")
@@ -359,27 +445,26 @@ def add_margin_overlay(doc_page, dpi=120, is_landscape=False):
     # 3. Warna Merah Lutsinar (Alpha=80 untuk bayang-bayang)
     red_transparent = (255, 0, 0, 80) 
     
-    # Nisbah mm ke piksel
-    px_per_mm = 2.83465 * (dpi / 72.0)
+    # Tukarkan margin sidebar daripada mm kepada piksel.
+    px_per_mm = dpi / 25.4
     w_px, h_px = base_img.size
-    
-    # 📌 PENETAPAN MARGIN TEPAT PIAWAIAN USM:
-    # Portrait : Kiri = 40mm (Jilid), Atas/Bawah/Kanan = 25mm
-    # Landscape: Atas = 40mm (Jilid), Kiri/Bawah/Kanan = 25mm
-    if is_landscape:
-        m_top = 40
-        m_left = 25   # 👈 Dibaiki: 25mm untuk Landscape
-    else:
-        m_top = 25
-        m_left = 40   # 👈 40mm khas jilid sebelah kiri Portrait
-        
-    m_bottom = 25
-    m_right = 25
-    
-    top_y = m_top * px_per_mm
-    bottom_y = h_px - (m_bottom * px_per_mm)
-    left_x = m_left * px_per_mm
-    right_x = w_px - (m_right * px_per_mm)
+
+    page_margins_mm = get_page_margins_mm(
+        is_landscape=is_landscape,
+        left_mm=margin_left_mm,
+        right_mm=margin_right_mm,
+        top_mm=margin_top_mm,
+        bottom_mm=margin_bottom_mm,
+    )
+
+    top_y = page_margins_mm["top"] * px_per_mm
+    bottom_y = h_px - (
+        page_margins_mm["bottom"] * px_per_mm
+    )
+    left_x = page_margins_mm["left"] * px_per_mm
+    right_x = w_px - (
+        page_margins_mm["right"] * px_per_mm
+    )
     
     # 4. Lukis 4 Garisan Margin Putus-putus
     draw_dashed_line(draw, (0, top_y), (w_px, top_y), color=red_transparent, width=2)       # Top
@@ -850,21 +935,160 @@ def generate_pdf_report(filtered_errors, total_pages):
     # Dalam fpdf2, pdf.output() terus memulangkan bytearray/bytes secara terus
     return bytes(pdf.output())
 
-def generate_annotated_thesis(doc_input, all_pages_errors, ignored_set):
-    # Optimasi ingatan menggunakan tobytes()
-    annotated_doc = fitz.open(stream=doc_input.tobytes(), filetype="pdf")
+def get_margin_overflow_sides(
+    bbox,
+    left,
+    right,
+    top,
+    bottom,
+    tolerance_left,
+    tolerance_right,
+    tolerance_vertical,
+):
+    """Kenal pasti sisi menggunakan ambang sama seperti pengesan objek."""
+    x0, y0, x1, y1 = bbox
+    sides = []
+
+    if x0 < left - tolerance_left:
+        sides.append("left")
+    if x1 > right + tolerance_right:
+        sides.append("right")
+    if y0 < top - tolerance_vertical:
+        sides.append("top")
+    if y1 > bottom + tolerance_vertical:
+        sides.append("bottom")
+
+    return sides
+
+def draw_review_boxes(page, errors, ignored_set, page_num, margins_mm):
+    """Lukis kotak biasa dan maksimum satu kotak gabungan setiap sisi."""
+    mm_to_pt = 72 / 25.4
+    page_rect = page.rect
+
+    left = margins_mm["left"] * mm_to_pt
+    right = page_rect.width - margins_mm["right"] * mm_to_pt
+    top = margins_mm["top"] * mm_to_pt
+    bottom = page_rect.height - margins_mm["bottom"] * mm_to_pt
+
+    margin_boxes = {}
+    normal_boxes = set()
+
+    for i, err in enumerate(errors):
+        err_id = f"p{page_num+1}_{i}"
+        if err_id in ignored_set:
+            continue
+
+        bboxes = err.get("bboxes")
+        if bboxes is None:
+            bbox = err.get("bbox")
+            bboxes = [bbox] if bbox is not None else []
+
+        margin_sides = err.get("margin_sides", [])
+
+        for bbox in bboxes:
+            rect = fitz.Rect(bbox)
+            if rect.is_empty or rect.is_infinite:
+                continue
+
+            if not margin_sides:
+                normal_boxes.add(tuple(rect))
+                continue
+
+            for side in margin_sides:
+                if side == "left" and rect.x0 < left:
+                    overflow = fitz.Rect(
+                        rect.x0, rect.y0,
+                        min(rect.x1, left), rect.y1,
+                    )
+                elif side == "right" and rect.x1 > right:
+                    overflow = fitz.Rect(
+                        max(rect.x0, right), rect.y0,
+                        rect.x1, rect.y1,
+                    )
+                elif side == "top" and rect.y0 < top:
+                    overflow = fitz.Rect(
+                        rect.x0, rect.y0,
+                        rect.x1, min(rect.y1, top),
+                    )
+                elif side == "bottom" and rect.y1 > bottom:
+                    overflow = fitz.Rect(
+                        rect.x0, max(rect.y0, bottom),
+                        rect.x1, rect.y1,
+                    )
+                else:
+                    continue
+
+                if overflow.is_empty:
+                    continue
+
+                if side in margin_boxes:
+                    margin_boxes[side] |= overflow
+                else:
+                    margin_boxes[side] = overflow
+
+    # Kotak biasa untuk isu font, caption dan isu bukan margin.
+    for bbox in sorted(normal_boxes):
+        page.draw_rect(
+            fitz.Rect(bbox),
+            color=(1, 0, 0),
+            width=1.5,
+        )
+
+    # Panjangkan kotak gabungan hingga garisan margin berkenaan.
+    for side, rect in margin_boxes.items():
+        if side == "left":
+            rect.x1 = left
+        elif side == "right":
+            rect.x0 = right
+        elif side == "top":
+            rect.y1 = top
+        elif side == "bottom":
+            rect.y0 = bottom
+
+        page.draw_rect(
+            rect,
+            color=(1, 0, 0),
+            width=1.5,
+        )
+
+def generate_annotated_thesis(
+    doc_input,
+    all_pages_errors,
+    ignored_set,
+    *,
+    margin_left_mm,
+    margin_right_mm,
+    margin_top_mm,
+    margin_bottom_mm,
+):
+    annotated_doc = fitz.open(
+        stream=doc_input.tobytes(),
+        filetype="pdf",
+    )
 
     for page_num, errors in enumerate(all_pages_errors):
         page = annotated_doc[page_num]
-        for i, err in enumerate(errors):
-            err_id = f"p{page_num+1}_{i}"
-            if err.get("bbox") and err_id not in ignored_set:
-                page.draw_rect(err["bbox"], color=(1, 0, 0), width=1.5)
+        is_landscape = page.rect.width > page.rect.height
+
+        margins_mm = get_page_margins_mm(
+            is_landscape=is_landscape,
+            left_mm=margin_left_mm,
+            right_mm=margin_right_mm,
+            top_mm=margin_top_mm,
+            bottom_mm=margin_bottom_mm,
+        )
+
+        draw_review_boxes(
+            page=page,
+            errors=errors,
+            ignored_set=ignored_set,
+            page_num=page_num,
+            margins_mm=margins_mm,
+        )
 
     out_bytes = annotated_doc.tobytes()
     annotated_doc.close()
     return out_bytes
-
 
 def create_download_button_html(file_bytes, filename, button_text, color="#2563eb"):
     b64 = base64.b64encode(file_bytes).decode()
@@ -1017,6 +1241,22 @@ uploaded_file = st.file_uploader(
 if uploaded_file is not None:
     # 📌 Gunakan .getvalue() mengekalkan data PDF
     pdf_bytes = uploaded_file.getvalue()
+
+    # Reset bypass apabila kandungan fail berbeza.
+    current_file_id = hashlib.sha256(pdf_bytes).hexdigest()
+    if st.session_state.get("active_file_id") != current_file_id:
+        st.session_state.ignored_errors = set()
+        st.session_state.report_pdf_bytes = None
+        st.session_state.annotated_pdf_bytes = None
+        st.session_state.combined_pdf_bytes = None
+        st.session_state.report_signature = None
+
+        for key in list(st.session_state.keys()):
+            if key.startswith(("cb_", "txt_")):
+                del st.session_state[key]
+
+        st.session_state.active_file_id = current_file_id
+
     doc = fitz.open(stream=pdf_bytes, filetype="pdf")
 
     # 📌 SEMAKAN 1: Buka PDF jika dikunci dengan Kata Laluan (Password)
@@ -1109,25 +1349,25 @@ if uploaded_file is not None:
         # -----------------------------------------------------------------
         # 📌 DEFINISI MARGIN USM SEBENAR (1mm ≈ 2.83465 pt)
         # -----------------------------------------------------------------
-        MARGIN_25MM_PT = 25 * 2.83465  # ~70.87 pt
-        MARGIN_40MM_PT = 40 * 2.83465  # ~113.39 pt
+        page_margins_mm = get_page_margins_mm(
+            is_landscape=is_landscape,
+            left_mm=margin_left_mm,
+            right_mm=margin_right_mm,
+            top_mm=margin_top_mm,
+            bottom_mm=margin_bottom_mm,
+        )
 
-        if is_landscape:
-            # LANDSCAPE: Top 40mm (sebab ruang jilid), Left/Right/Bottom 25mm
-            cur_m_top = MARGIN_40MM_PT
-            cur_m_bottom = rect.height - MARGIN_25MM_PT
-            cur_m_left = MARGIN_25MM_PT
-            cur_m_right = rect.width - MARGIN_25MM_PT
-            top_limit_label = "40mm"
-            limit_mm = 40
-        else:
-            # PORTRAIT: Top 25mm, Left 40mm (sebab ruang jilid), Right/Bottom 25mm
-            cur_m_top = MARGIN_25MM_PT
-            cur_m_bottom = rect.height - MARGIN_25MM_PT
-            cur_m_left = MARGIN_40MM_PT
-            cur_m_right = rect.width - MARGIN_25MM_PT
-            top_limit_label = "25mm"
-            limit_mm = 25
+        cur_m_left = page_margins_mm["left"] * MM_TO_PT
+        cur_m_right = rect.width - (
+            page_margins_mm["right"] * MM_TO_PT
+        )
+        cur_m_top = page_margins_mm["top"] * MM_TO_PT
+        cur_m_bottom = rect.height - (
+            page_margins_mm["bottom"] * MM_TO_PT
+        )
+
+        top_limit_label = f"{page_margins_mm['top']:g}mm"
+        limit_mm = page_margins_mm["top"]
 
         # =========================================================================
         # 🟢 SEMAKAN IMEJ & JADUAL (PINTAR: ABAIKAN HEADER/FOOTER/NOMBOR M/S v1.5.0)
@@ -1189,6 +1429,16 @@ if uploaded_file is not None:
                     page_errors.append({
                         "msg": msg_img_overflow,
                         "bbox": img["bbox"],
+                        "margin_sides": get_margin_overflow_sides(
+                            img["bbox"],
+                            cur_m_left,
+                            cur_m_right,
+                            cur_m_top,
+                            cur_m_bottom,
+                            TOLERANCE_LEFT_PT,
+                            TOLERANCE_RIGHT_PT,
+                            TOLERANCE_TOP_BOTTOM_PT,
+                        ),
                     })
 
         # -------------------------------------------------------------------------
@@ -1236,7 +1486,18 @@ if uploaded_file is not None:
                     page_errors.append({
                         "msg": msg_tbl_overflow,
                         "bbox": tb_bbox,
+                        "margin_sides": get_margin_overflow_sides(
+                            tb_bbox,
+                            cur_m_left,
+                            cur_m_right,
+                            cur_m_top,
+                            cur_m_bottom,
+                            TOLERANCE_LEFT_PT,
+                            TOLERANCE_RIGHT_PT,
+                            TOLERANCE_TOP_BOTTOM_PT,
+                        ),
                     })
+
         except Exception:
             pass
 
@@ -1280,6 +1541,16 @@ if uploaded_file is not None:
                     page_errors.append({
                         "msg": msg_tbl_overflow,
                         "bbox": d["rect"],
+                        "margin_sides": get_margin_overflow_sides(
+                            d["rect"],
+                            cur_m_left,
+                            cur_m_right,
+                            cur_m_top,
+                            cur_m_bottom,
+                            TOLERANCE_LEFT_PT,
+                            TOLERANCE_RIGHT_PT,
+                            TOLERANCE_TOP_BOTTOM_PT,
+                        ),
                     })
 
         # -----------------------------------------------------------------
@@ -1361,10 +1632,10 @@ if uploaded_file is not None:
         is_toc_page = has_toc_header or (dot_leaders_count >= 3)
 
         if not is_toc_page:
-            blocks = page.get_text("blocks")
+            chapter_text_blocks = page.get_text("blocks")
             chapter_blocks = []
 
-            for b in blocks:
+            for b in chapter_text_blocks:
                 raw_btext = b[4].strip() if len(b) >= 5 else ""
                 clean_btext = " ".join(raw_btext.split()).strip()
                 
@@ -1459,19 +1730,16 @@ if uploaded_file is not None:
             
             # 🎯 TETAPAN TOLERANSI (DALAM POINT)
             TOLERANCE_TOP_PT = 2.0     # ~0.7mm
+            TOLERANCE_BOTTOM_PT = 2.0  # ~0.71mm
             TOLERANCE_LEFT_PT = 2.0    # ~0.7mm
             TOLERANCE_RIGHT_PT = 8.0   # ~2.1mm (Ubah dari 3.0 ke 6.0 pt supaya telan lebihan 1.1mm belah kanan!)
 
-            limit_mm = int(cur_m_top / PT_TO_MM)
-            limit_left_mm = int(cur_m_left / PT_TO_MM)
+            limit_mm = page_margins_mm["top"]
+            limit_left_mm = page_margins_mm["left"]
 
-            # Pelarasan automatik koordinat Margin Kanan
-            if cur_m_right > (rect.width / 2):
-                right_limit_pt = cur_m_right
-                limit_right_mm = int((rect.width - cur_m_right) / PT_TO_MM)
-            else:
-                right_limit_pt = rect.width - cur_m_right
-                limit_right_mm = int(cur_m_right / PT_TO_MM)
+            # cur_m_right ialah koordinat sempadan kanan kawasan teks.
+            right_limit_pt = cur_m_right
+            limit_right_mm = page_margins_mm["right"]
 
             # 1. BACA TEKS PER BARIS (DICTIONARY LEVEL)
             text_dict = page.get_text("dict")
@@ -1514,6 +1782,22 @@ if uploaded_file is not None:
                             "bbox": (lx0, ly0, lx1, ly1),
                         })
 
+                    # Semak bahagian bawah teks, selepas penapis nombor halaman.
+                    if ly1 > (cur_m_bottom + TOLERANCE_BOTTOM_PT):
+                        diff_bottom_mm = (
+                            ly1 - cur_m_bottom
+                        ) / MM_TO_PT
+
+                        page_errors.append({
+                            "msg": TEXT_I18N[lang_code]["margin_bottom"].format(
+                                limit=page_margins_mm["bottom"],
+                                text=clean_snippet,
+                                diff=diff_bottom_mm,
+                            ),
+                            "bbox": (lx0, ly0, lx1, ly1),
+                            "margin_sides": ["bottom"],
+                        })
+
                     # 🟢 B. KUMPUL PELANGGARAN MARGIN KIRI (PER BARIS)
                     if lx0 < (cur_m_left - TOLERANCE_LEFT_PT):
                         diff_left_mm = round((cur_m_left - lx0) / PT_TO_MM, 1)
@@ -1548,7 +1832,8 @@ if uploaded_file is not None:
                 for v in left_violations:
                     page_errors.append({
                         "msg": msg_left_summary,
-                        "bbox": v["bbox"]
+                        "bbox": v["bbox"],
+                        "margin_sides": ["left"],
                     })
 
             # B. Ringkasan Margin Kanan
@@ -1563,7 +1848,8 @@ if uploaded_file is not None:
                 for v in right_violations:
                     page_errors.append({
                         "msg": msg_right_summary,
-                        "bbox": v["bbox"]
+                        "bbox": v["bbox"],
+                        "margin_sides": ["right"],
                     })
 
             # 2. SEMAK GARISAN JADUAL / VECTOR DRAWINGS / SHAPE
@@ -1583,75 +1869,23 @@ if uploaded_file is not None:
                             "bbox": d_rect,
                         })
 
-            # 3. LAPORKAN ELEMEN PALING ATAS
-            if top_margin_violations:
-                top_margin_violations.sort(key=lambda x: x["y0"])
-                highest_violation = top_margin_violations[0]
-                
+            # Laporkan semua lokasi pelanggaran atas, tanpa pendua sama.
+            seen_top_violations = set()
+
+            for violation in top_margin_violations:
+                violation_key = (
+                    violation["msg"],
+                    tuple(violation["bbox"]),
+                )
+                if violation_key in seen_top_violations:
+                    continue
+
+                seen_top_violations.add(violation_key)
+
                 page_errors.append({
-                    "msg": highest_violation["msg"],
-                    "bbox": highest_violation["bbox"],
-                })
-
-            # -----------------------------------------------------------------
-            # 🟢 BINA RINGKASAN AMARAN (1 AYAT RINGKAS + HIGHLIGHT SEMUA BARIS)
-            # -----------------------------------------------------------------
-
-            # A. Ringkasan Margin Kiri
-            if left_violations:
-                min_diff = min(v["diff"] for v in left_violations)
-                max_diff = max(v["diff"] for v in left_violations)
-                count = len(left_violations)
-                
-                diff_str = f"{min_diff}mm" if min_diff == max_diff else f"{min_diff}mm - {max_diff}mm"
-                msg_left_summary = f"Margin Kiri {limit_left_mm}mm: Dikesan {count} baris teks melanggar margin ({diff_str} terkeluar)."
-                
-                for v in left_violations:
-                    page_errors.append({
-                        "msg": msg_left_summary,
-                        "bbox": v["bbox"]
-                    })
-
-            # B. Ringkasan Margin Kanan
-            if right_violations:
-                min_diff = min(v["diff"] for v in right_violations)
-                max_diff = max(v["diff"] for v in right_violations)
-                count = len(right_violations)
-                
-                diff_str = f"{min_diff}mm" if min_diff == max_diff else f"{min_diff}mm - {max_diff}mm"
-                msg_right_summary = f"Margin Kanan {limit_right_mm}mm: Dikesan {count} baris teks melanggar margin ({diff_str} terkeluar)."
-                
-                for v in right_violations:
-                    page_errors.append({
-                        "msg": msg_right_summary,
-                        "bbox": v["bbox"]
-                    })
-
-            # 2. SEMAK GARISAN JADUAL / VECTOR DRAWINGS / SHAPE
-            for path in page.get_drawings():
-                d_rect = path.get("rect")
-                if d_rect:
-                    dy0 = d_rect[1]
-                    if dy0 < (cur_m_top - 2.0) and dy0 > 85.0:
-                        actual_y_mm = round(dy0 / PT_TO_MM, 1)
-                        msg_table_top = (
-                            f"Bingkai Objek / Shape / Jadual melanggar Margin Atas {limit_mm}mm "
-                            f"({actual_y_mm:.1f}mm dikesan)."
-                        )
-                        top_margin_violations.append({
-                            "y0": dy0,
-                            "msg": msg_table_top,
-                            "bbox": d_rect,
-                        })
-
-            # 3. LAPORKAN ELEMEN PALING ATAS
-            if top_margin_violations:
-                top_margin_violations.sort(key=lambda x: x["y0"])
-                highest_violation = top_margin_violations[0]
-                
-                page_errors.append({
-                    "msg": highest_violation["msg"],
-                    "bbox": highest_violation["bbox"],
+                    "msg": violation["msg"],
+                    "bbox": violation["bbox"],
+                    "margin_sides": ["top"],
                 })
 
         # -----------------------------------------------------------------
@@ -2270,13 +2504,23 @@ if uploaded_file is not None:
         # 🟢 SIMPAN DATA RALAT (SIMPAN MESEJ UNIK SAHAJA KE DALAM LIST UTAMA)
         # =========================================================================
         unique_page_errors = []
-        seen_msgs = set()
-        
-        # Tapis supaya hanya mesej unik disimpan untuk paparan UI & Laporan
+        issues_by_message = {}
+
+        # Satu mesej boleh mempunyai beberapa lokasi highlight.
         for e in page_errors:
-            if e["msg"] not in seen_msgs:
-                seen_msgs.add(e["msg"])
-                unique_page_errors.append(e)
+            msg = e["msg"]
+
+            if msg not in issues_by_message:
+                grouped_issue = dict(e)
+                grouped_issue["bboxes"] = []
+                issues_by_message[msg] = grouped_issue
+                unique_page_errors.append(grouped_issue)
+
+            bbox = e.get("bbox")
+            if bbox is not None:
+                bbox_tuple = tuple(bbox)
+                if bbox_tuple not in issues_by_message[msg]["bboxes"]:
+                    issues_by_message[msg]["bboxes"].append(bbox_tuple)
 
         # 📌 SIMPAN UNIK LIST INI (Bukan page_errors mentah)
         all_pages_errors_list.append(unique_page_errors)
@@ -2296,11 +2540,46 @@ if uploaded_file is not None:
 
     st.write(f"Jumlah isu aktif yang disahkan untuk dilaporkan: **{len(detected_issues)} isu**")
 
+    # Batalkan laporan lama apabila sumber atau keputusan semakan berubah.
+    current_report_signature = hashlib.sha256(
+        repr((
+            hashlib.sha256(pdf_bytes).hexdigest(),
+            uploaded_file.name,
+            APP_VERSION,
+            lang_code,
+            preset,
+            margin_left_mm,
+            margin_right_mm,
+            margin_top_mm,
+            margin_bottom_mm,
+            tuple(sorted(allowed_fonts)),
+            semak_caption,
+            abaikan_teks_dalam_gambar,
+            abaikan_appendix,
+            abaikan_pagenum_appendix,
+            tuple(sorted(st.session_state.ignored_errors)),
+            all_pages_errors_list,
+        )).encode("utf-8")
+    ).hexdigest()
+
+    if st.session_state.get("report_signature") != current_report_signature:
+        st.session_state.report_pdf_bytes = None
+        st.session_state.annotated_pdf_bytes = None
+        st.session_state.combined_pdf_bytes = None
+        st.session_state.report_signature = current_report_signature
+
     if st.button("⚙️ Jana Dokumen PDF Akhir", type="primary", use_container_width=True):
         with st.spinner("Menjana fail PDF Gabungan (Visual + Laporan)... Sila tunggu sebentar."):
             annotated_pdf_bytes = generate_annotated_thesis(
-                doc, all_pages_errors_list, st.session_state.ignored_errors
+                doc,
+                all_pages_errors_list,
+                st.session_state.ignored_errors,
+                margin_left_mm=margin_left_mm,
+                margin_right_mm=margin_right_mm,
+                margin_top_mm=margin_top_mm,
+                margin_bottom_mm=margin_bottom_mm,
             )
+
             st.session_state.combined_pdf_bytes = generate_combined_visual_report(
                 annotated_pdf_bytes, 
                 all_pages_errors_list, 
@@ -2366,14 +2645,35 @@ if uploaded_file is not None:
             col_img, col_details = st.columns([1, 1])
             doc_page = doc[page_num]
 
-            # 🟢 KIRI: Lukis SEMUA petak merah pada visual PDF (11 baris = 11 petak)
-            for err in raw_page_errors:
-                if err.get("bbox"):
-                    doc_page.draw_rect(err["bbox"], color=(1, 0, 0), width=1.5)
+            # Gunakan fungsi lukisan sama seperti eksport PDF.
+            preview_margins_mm = get_page_margins_mm(
+                is_landscape=is_landscape,
+                left_mm=margin_left_mm,
+                right_mm=margin_right_mm,
+                top_mm=margin_top_mm,
+                bottom_mm=margin_bottom_mm,
+            )
+
+            draw_review_boxes(
+                page=doc_page,
+                errors=raw_page_errors,
+                ignored_set=st.session_state.ignored_errors,
+                page_num=page_num,
+                margins_mm=preview_margins_mm,
+            )
 
             # Kolum Kiri: Gambar Visual PDF
             with col_img:
-                img_with_guides = add_margin_overlay(doc_page, dpi=120, is_landscape=is_landscape)
+                img_with_guides = add_margin_overlay(
+                    doc_page,
+                    dpi=120,
+                    is_landscape=is_landscape,
+                    margin_left_mm=margin_left_mm,
+                    margin_right_mm=margin_right_mm,
+                    margin_top_mm=margin_top_mm,
+                    margin_bottom_mm=margin_bottom_mm,
+                )
+
                 preview_caption = TEXT_I18N[lang_code]["ui_preview_caption"].format(num=page_num + 1)
                 st.image(img_with_guides, caption=preview_caption, use_container_width=True)
 
