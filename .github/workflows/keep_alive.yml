@@ -1,4 +1,4 @@
-name: Auto Wake Streamlit App
+name: Auto Wake Streamlit Apps
 
 on:
   schedule:
@@ -20,31 +20,38 @@ jobs:
           pip install playwright
           playwright install chromium
 
-      - name: Open App and Auto Click Wake Button
+      - name: Open Apps and Auto Click Wake Button
         run: |
           python -c "
           from playwright.sync_api import sync_playwright
           import time
 
+          urls = [
+              'https://e-semak-pta.streamlit.app',
+              'https://semakan-format-tesis-usm.streamlit.app/'
+          ]
+
           with sync_playwright() as p:
               browser = p.chromium.launch(headless=True)
               page = browser.new_page()
-              print('Membuka e-Semak PTA...')
-              try:
-                  page.goto('https://e-semak-pta.streamlit.app', timeout=60000)
-                  time.sleep(5)
 
-                  # Cari butang 'Yes, get this app back up!'
-                  button = page.query_selector('button:has-text(\"Yes, get this app back up!\")')
-                  if button:
-                      print('Dikesan mod Zzzz! Menekan butang bangunkan...')
-                      button.click()
-                      time.sleep(15)
-                      print('Berjaya mengejutkan Streamlit!')
-                  else:
-                      print('Aplikasi sedia ada aktif.')
-              except Exception as e:
-                  print(f'Ralat: {e}')
-              finally:
-                  browser.close()
+              for url in urls:
+                  print(f'=== Membuka: {url} ===')
+                  try:
+                      page.goto(url, timeout=60000)
+                      time.sleep(5)
+
+                      # Cari butang 'Yes, get this app back up!'
+                      button = page.query_selector('button:has-text(\"Yes, get this app back up!\")')
+                      if button:
+                          print(f'Dikesan mod Zzzz! Menekan butang bangunkan untuk {url}...')
+                          button.click()
+                          time.sleep(15)
+                          print(f'Berjaya mengejutkan {url}!')
+                      else:
+                          print(f'Aplikasi {url} sedia ada aktif.')
+                  except Exception as e:
+                      print(f'Ralat pada {url}: {e}')
+
+              browser.close()
           "
